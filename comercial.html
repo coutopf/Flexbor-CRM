@@ -269,7 +269,10 @@ textarea{resize:none;min-height:72px;font-size:14px;}
         <div class="fg"><label>Tipo</label><select id="v-tipo"><option>Presencial</option><option>Videochamada</option><option>Telefone</option></select></div>
       </div>
       <div class="fg">
-        <label>Cliente *</label><select id="v-cliente"></select>
+        <label>Cliente *</label>
+        <select id="v-cliente">
+          <option value="">— selecionar cliente —</option>
+        </select>
         <div class="fhint">Não encontras? <button style="background:none;border:none;color:var(--ac);font-size:11px;cursor:pointer;padding:0" onclick="criarClienteRapido()">Criar agora →</button></div>
       </div>
       <div class="fg"><label>Objetivo</label><input type="text" id="v-obj" placeholder="Ex: apresentar proposta, prospeção..." autocomplete="off"></div>
@@ -288,7 +291,7 @@ textarea{resize:none;min-height:72px;font-size:14px;}
   <div class="drw-ft">
     <button class="btn btn-full" id="v-back" onclick="wBack()" style="display:none">← Voltar</button>
     <button class="btn btn-p btn-full" id="v-next" onclick="wNext()">Continuar →</button>
-    <button class="btn btn-p btn-full" id="v-save" style="display:none" onclick="saveVisita()">Guardar ✓</button>
+    <button class="btn btn-p btn-full" id="v-save" style="display:none" onclick="saveVisita()">Guardar visita ✓</button>
   </div>
 </div>
 
@@ -466,7 +469,7 @@ function renderHome(){
       <button class="btn btn-sm" style="color:var(--gr);border-color:rgba(77,202,122,.3);flex-shrink:0" onclick="concluir('${t.id}')">✓</button>
     </div>`).join('');
   const uv=D.visitas.slice(0,4);
-  document.getElementById('home-vis').innerHTML=uv.length===0?'<div class="empty"><p>Sem visitas. Usa o botão acima!</p></div>':
+  document.getElementById('home-vis').innerHTML=uv.length===0?'<div class="empty"><p>Ainda sem visitas registadas.<br>Toca no botão amarelo acima para começar!</p></div>':
     uv.map(v=>`<div class="irow"><div class="irow-top"><span class="irow-name">${v.cliente_nome}</span><span class="badge ${tipoCls(v.tipo)}">${v.tipo}</span></div><div class="irow-sub">${fmtDate(v.data)}${v.objetivo?' · '+v.objetivo:''}</div></div>`).join('');
   const today2=new Date();today2.setHours(0,0,0,0);
   const soon=D.opps.filter(o=>o.estado==='aberta'&&o.data_fecho).sort((a,b)=>a.data_fecho.localeCompare(b.data_fecho)).slice(0,4);
@@ -512,7 +515,7 @@ function renderVisitas(){
 // OPPS
 function renderOpps(){
   const el=document.getElementById('list-opps');
-  if(!D.opps.length){el.innerHTML=`<div class="empty"><div class="empty-ico">◇</div><p>Sem oportunidades.</p></div>`;return;}
+  if(!D.opps.length){el.innerHTML=`<div class="empty"><div class="empty-ico">◇</div><p>Sem oportunidades ainda.<br>Regista uma visita e cria a tua primeira oportunidade!</p><div class="empty-act"><button class="btn btn-p btn-sm" onclick="openDrw('opp')">+ Nova oportunidade</button></div></div>`;return;}
   const fm={Prospeção:'bbgr',Qualificação:'bbl',Proposta:'bbo',Negociação:'bbp','Fechado — Ganho':'bbg','Fechado — Perdido':'bbr'};
   el.innerHTML=D.opps.map(o=>`<div class="irow">
     <div class="irow-top"><span class="irow-name">${o.nome}</span><span class="badge ${fm[o.fase]||'bbgr'}">${o.fase}</span></div>
@@ -533,7 +536,12 @@ function renderTarefas(){
   const today=new Date();today.setHours(0,0,0,0);
   const list=D.tarefas.filter(t=>tabT==='pend'?t.estado==='pendente':t.estado==='concluida');
   const el=document.getElementById('list-tarefas');
-  if(!list.length){el.innerHTML=`<div class="empty"><div class="empty-ico">${tabT==='pend'?'✓':'—'}</div><p>${tabT==='pend'?'Sem tarefas pendentes! 🎉':'Sem tarefas concluídas.'}</p></div>`;return;}
+  if(!list.length){
+    const msg=tabT==='pend'?'Sem tarefas pendentes! 🎉':'Sem tarefas concluídas ainda.';
+    const cta=tabT==='pend'?`<div class="empty-act"><button class="btn btn-p btn-sm" onclick="openDrw('tarefa')">+ Nova tarefa</button></div>`:'';
+    el.innerHTML=`<div class="empty"><div class="empty-ico">${tabT==='pend'?'✓':'📋'}</div><p>${msg}</p>${cta}</div>`;
+    return;
+  }
   el.innerHTML=list.map(t=>{
     const urg=t.estado==='pendente'&&new Date(t.data_limite)<=today;
     const days=Math.ceil((new Date(t.data_limite)-today)/86400000);
@@ -582,7 +590,10 @@ function openDrw(type){
 }
 function openDrwCli(type,cid){openDrw(type);setTimeout(()=>{const el=document.getElementById(type==='visita'?'v-cliente':'o-cliente');if(el)el.value=cid;},60);}
 function closeDrw(){
-  if(activeDrw)document.getElementById('drw-'+activeDrw).classList.remove('on');
+  if(activeDrw){
+    document.getElementById('drw-'+activeDrw).classList.remove('on');
+    if(activeDrw==='visita') resetWizard();
+  }
   document.getElementById('dov').classList.remove('on');
   activeDrw=null;
 }
@@ -597,6 +608,8 @@ function resetWizard(){
   ['v-obj','v-notas','v-prox'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('v-fu').value='';
   document.getElementById('v-copp').value='';
+  document.getElementById('v-cliente').value='';
+  document.getElementById('v-data').value=new Date().toISOString().split('T')[0];
 }
 function wNext(){
   if(!document.getElementById('v-cliente').value){toast('Seleciona um cliente','err');return;}
@@ -670,7 +683,9 @@ async function saveOpp(){
   btn.innerHTML='Guardar';btn.disabled=false;
   if(error){toast('Erro: '+error.message,'err');return;}
   toast(`"${nome}" criada!`,'ok');
-  ['o-nome','o-valor','o-prob','o-notas'].forEach(id=>document.getElementById(id).value='');
+  ['o-nome','o-valor','o-prob','o-notas','o-fecho'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('o-fase').value='Prospeção';
+  document.getElementById('o-prob').value='50';
   closeDrw();await loadAll();
 }
 
@@ -682,7 +697,12 @@ async function saveTarefa(){
   const{error}=await sb.from('tarefas').insert({descricao:desc,cliente_id:cid||null,cliente_nome:cliente?.nome||'',tipo:document.getElementById('t-tipo').value,data_limite:dl,notas:document.getElementById('t-notas').value,estado:'pendente',criado_por:myId});
   btn.innerHTML='Guardar';btn.disabled=false;
   if(error){toast('Erro: '+error.message,'err');return;}
-  toast('Tarefa criada!','ok');['t-desc','t-notas'].forEach(id=>document.getElementById(id).value='');closeDrw();await loadAll();
+  toast('Tarefa criada!','ok');
+  ['t-desc','t-notas'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('t-cliente').value='';
+  document.getElementById('t-tipo').value='Follow-up';
+  document.getElementById('t-data').value='';
+  closeDrw();await loadAll();
 }
 
 // ACTIONS
@@ -690,7 +710,10 @@ async function concluir(id){await sb.from('tarefas').update({estado:'concluida'}
 async function updateFase(id,fase){
   const estado=fase.includes('Ganho')?'ganha':fase.includes('Perdido')?'perdida':'aberta';
   await sb.from('oportunidades').update({fase,estado}).eq('id',id);
-  toast(fase==='Fechado — Ganho'?'Negócio ganho! 🏆':'Fase atualizada','ok');await loadAll();
+  if(fase==='Fechado — Ganho') toast('Negócio ganho! 🏆','ok');
+  else if(fase==='Fechado — Perdido') toast('Oportunidade marcada como perdida.','inf');
+  else toast('Fase atualizada: '+fase,'ok');
+  await loadAll();
 }
 
 // CONFIRM DELETE

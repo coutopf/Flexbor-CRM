@@ -221,6 +221,7 @@ tr:hover td{background:rgba(255,255,255,.015);}
         <button class="sb-item" onclick="nav('visitas',this)"><span class="sb-ico">📍</span>Visitas</button>
         <button class="sb-item" onclick="nav('opps',this)"><span class="sb-ico">◇</span>Oportunidades</button>
         <button class="sb-item" onclick="nav('equipa',this)"><span class="sb-ico">◉</span>Equipa</button>
+        <button class="sb-item" onclick="nav('clientes',this)"><span class="sb-ico">◉</span>Clientes</button>
       </div>
     </nav>
     <div class="sb-bot">
@@ -244,6 +245,7 @@ tr:hover td{background:rgba(255,255,255,.015);}
           <option value="quarter">Este trimestre</option>
         </select>
       </div>
+      <span id="last-update" style="font-size:10px;color:var(--t3)"></span>
     </div>
 
     <div class="content">
@@ -338,6 +340,29 @@ tr:hover td{background:rgba(255,255,255,.015);}
           <button class="btn btn-p" onclick="openAddModal()">+ Adicionar membro</button>
         </div>
         <div class="equipa-grid" id="equipa-grid"></div>
+      </div>
+
+      <!-- CLIENTES -->
+      <div class="view" id="view-clientes">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <span style="font-size:16px;font-weight:800">Clientes</span>
+          <button class="btn btn-p" onclick="openAddClienteModal()">+ Novo cliente</button>
+        </div>
+        <div class="card">
+          <div class="tbl-search">
+            <input type="search" placeholder="Pesquisar cliente..." id="sc" oninput="renderClientes()">
+            <select class="fsel" id="fcs" onchange="renderClientes()">
+              <option value="">Todos os setores</option>
+              <option>Indústria</option><option>Retalho</option><option>Serviços</option>
+              <option>Tecnologia</option><option>Construção</option><option>Saúde</option><option>Outro</option>
+            </select>
+            <select class="fsel" id="fcc" onchange="renderClientes()"><option value="">Todos os comerciais</option></select>
+          </div>
+          <table>
+            <thead><tr><th>Cliente</th><th>Setor</th><th>Contacto</th><th>Tel.</th><th>Localidade</th><th>Comercial</th><th>Visitas</th><th>Oport.</th></tr></thead>
+            <tbody id="tb-clientes"></tbody>
+          </table>
+        </div>
       </div>
 
     </div>
@@ -454,6 +479,8 @@ async function loadAll(){
   raw.profiles=pr.data||[];raw.clientes=cl.data||[];raw.visitas=vi.data||[];raw.opps=op.data||[];raw.tarefas=ta.data||[];
   fillProfileFilters();
   applyFilter();
+  const lu=document.getElementById('last-update');
+  if(lu) lu.textContent='Atualizado às '+new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
 }
 
 function fillProfileFilters(){
@@ -480,7 +507,7 @@ function applyFilter(){
   renderAll();
 }
 
-function renderAll(){renderDash();renderAlertas();renderPipeline();renderRelatorios();renderRanking();renderVisitas();renderOpps();renderEquipa();}
+function renderAll(){renderDash();renderAlertas();renderPipeline();renderRelatorios();renderRanking();renderVisitas();renderOpps();renderEquipa();renderClientes();fillClienteComercialFilter();}
 
 // HELPERS
 function fmtDate(d){if(!d)return'—';const p=d.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d;}
@@ -515,7 +542,7 @@ function renderDash(){
   const coms=raw.profiles.filter(p=>p.role==='comercial');
   const rd=coms.map((p,i)=>({nome:p.nome,cor:rndColor(i),v:raw.visitas.filter(v=>v.criado_por===p.id&&new Date(v.data)>=semana).length,pipe:filt.opps.filter(o=>o.criado_por===p.id&&o.estado==='aberta').reduce((s,o)=>s+(o.valor||0),0)})).sort((a,b)=>b.v-a.v);
   const maxV=Math.max(...rd.map(r=>r.v),1);
-  document.getElementById('dash-rank').innerHTML=rd.length===0?'<div class="empty">Sem comerciais</div>':
+  document.getElementById('dash-rank').innerHTML=rd.length===0?'<div class="empty" style="padding:20px">Sem comerciais na equipa ainda. Vai a <strong>Equipa</strong> para adicionar.</div>':
     rd.map((r,i)=>`<div class="rank-row">
       <div class="rank-pos ${i===0?'gold':i===1?'silver':''}">${i+1}</div>
       <div class="rank-av" style="background:${r.cor}20;color:${r.cor}">${profIni(r.nome)}</div>
@@ -528,7 +555,7 @@ function renderDash(){
   // Closing soon
   const today=new Date();today.setHours(0,0,0,0);
   const soon=filt.opps.filter(o=>o.estado==='aberta'&&o.data_fecho&&daysLeft(o.data_fecho)<=30&&daysLeft(o.data_fecho)>=0).sort((a,b)=>a.data_fecho.localeCompare(b.data_fecho));
-  document.getElementById('dash-closing').innerHTML=soon.length===0?'<div class="empty">Nenhuma a fechar em 30 dias</div>':
+  document.getElementById('dash-closing').innerHTML=soon.length===0?'<div class="empty" style="padding:20px">Sem oportunidades com data de fecho definida nos próximos 30 dias.</div>':
     `<table><thead><tr><th>Oportunidade</th><th>Valor</th><th>Fecho</th><th>Comercial</th></tr></thead><tbody>`+
     soon.map(o=>{const d=daysLeft(o.data_fecho);const cls=d<=3?'bbr':d<=7?'bbo':'bba';
       return`<tr><td><strong>${o.nome}</strong><br><span style="font-size:10px;color:var(--t3)">${o.cliente_nome}</span></td><td style="font-family:monospace">${fmtEur(o.valor)}</td><td><span class="badge ${cls}">${d===0?'Hoje':d===1?'Amanhã':d+'d'}</span></td><td>${profName(o.criado_por)}</td></tr>`;
@@ -562,7 +589,7 @@ function renderAlertas(){
   alertas.length?(badge.textContent=alertas.length,badge.classList.add('on')):badge.classList.remove('on');
   const criticos=alertas.filter(a=>a.type==='red');
   document.getElementById('dash-alerts').innerHTML=criticos.map(a=>`<div class="alert-b ab-red"><div class="ab-ico">${a.ico}</div><div><div class="ab-title">${a.title}</div>${a.items.slice(0,3).map(i=>`<div class="ab-item">· ${i}</div>`).join('')}</div></div>`).join('');
-  document.getElementById('alertas-content').innerHTML=alertas.length===0?'<div class="card"><div class="empty" style="padding:60px">✅<br><br>Sem alertas! Tudo em ordem.</div></div>':
+  document.getElementById('alertas-content').innerHTML=alertas.length===0?'<div class="card"><div class="empty" style="padding:60px 20px"><div style="font-size:40px;margin-bottom:12px">✅</div><p style="font-size:15px;font-weight:700;color:var(--t)">Tudo em ordem!</p><p style="margin-top:6px;font-size:13px">Sem oportunidades paradas, sem prazos urgentes, sem tarefas atrasadas.</p></div></div>':
     alertas.map(a=>`<div class="alert-b ${a.type==='red'?'ab-red':'ab-warn'}" style="margin-bottom:12px"><div class="ab-ico">${a.ico}</div><div style="flex:1"><div class="ab-title">${a.title}</div>${a.items.map(i=>`<div class="ab-item">· ${i}</div>`).join('')}</div></div>`).join('');
 }
 
@@ -579,7 +606,26 @@ function renderPipeline(){
     const tot=items.reduce((s,o)=>s+(o.valor||0),0);
     return`<div class="pipe-col"><div class="pipe-col-hd"><div class="pipe-col-title" style="color:${fCor[fase]}">${fase}</div><div class="pipe-col-meta">${items.length} · ${fmtK(tot)}</div></div>
       <div class="pipe-items">${items.length===0?`<div style="color:var(--t3);font-size:11px;text-align:center;padding:10px">—</div>`:
-        items.map(o=>`<div class="pipe-card"><div class="pipe-name">${o.nome}</div><div class="pipe-client">${o.cliente_nome}</div><div class="pipe-foot"><span class="pipe-val">${fmtK(o.valor)}</span><span class="pipe-who">${profName(o.criado_por).split(' ')[0]}</span></div></div>`).join('')}
+        items.map(o=>{
+          const dl=daysLeft(o.data_fecho);
+          const urgTag=dl!==null&&dl<=7?`<span class="badge bbr" style="font-size:9px">${dl===0?'Hoje':dl<0?'Expirado':dl+'d'}</span>`:
+                       dl!==null&&dl<=30?`<span class="badge bbo" style="font-size:9px">${dl+'d'}</span>`:'';
+          return`<div class="pipe-card">
+            <div class="pipe-name">${o.nome}</div>
+            <div class="pipe-client">${o.cliente_nome}</div>
+            <div class="pipe-foot">
+              <span class="pipe-val">${fmtK(o.valor)}</span>
+              <span class="pipe-who">${profName(o.criado_por).split(' ')[0]}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:5px">
+              <div style="flex:1;height:3px;background:var(--s4);border-radius:2px;overflow:hidden">
+                <div style="height:100%;width:${o.probabilidade||0}%;background:${fCor[fase]};border-radius:2px"></div>
+              </div>
+              <span style="font-size:9px;color:var(--t3)">${o.probabilidade||0}%</span>
+              ${urgTag||''}
+            </div>
+          </div>`;
+        }).join('')}
       </div></div>`;
   }).join('');
 }
@@ -617,7 +663,7 @@ function renderRanking(){
   const getNum=r=>({visitas:r.v,pipeline:r.pipe,receita:r.rec,taxa:r.taxa})[rankTab]||0;
   const getVal=r=>({visitas:r.v+' vis.',pipeline:fmtK(r.pipe),receita:fmtK(r.rec),taxa:r.taxa+'%'})[rankTab];
   const maxVal=Math.max(...data.map(getNum),1);
-  document.getElementById('rank-list').innerHTML=data.length===0?'<div class="empty">Sem comerciais</div>':
+  document.getElementById('rank-list').innerHTML=data.length===0?'<div class="empty" style="padding:20px">Sem comerciais na equipa ainda. Vai a <strong>Equipa</strong> para adicionar.</div>':
     data.map((r,i)=>`<div class="rank-row">
       <div class="rank-pos ${i===0?'gold':i===1?'silver':''}">${i+1}</div>
       <div class="rank-av" style="background:${r.cor}15;color:${r.cor}">${profIni(r.nome)}</div>
@@ -636,7 +682,7 @@ function renderVisitas(){
     const ms=!q||v.cliente_nome.toLowerCase().includes(q)||(v.objetivo||'').toLowerCase().includes(q)||profName(v.criado_por).toLowerCase().includes(q);
     return ms&&(!tipo||v.tipo===tipo);
   });
-  document.getElementById('tb-vis').innerHTML=list.length===0?'<tr><td colspan="6"><div class="empty">Sem visitas</div></td></tr>':
+  document.getElementById('tb-vis').innerHTML=list.length===0?'<tr><td colspan="6"><div class="empty" style="padding:24px">Sem visitas para mostrar com os filtros atuais.</div></td></tr>':
     list.map(v=>`<tr><td>${fmtDate(v.data)}</td><td><strong>${v.cliente_nome}</strong></td><td><span class="badge ${tipoCls(v.tipo)}">${v.tipo}</span></td><td>${profName(v.criado_por)}</td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.objetivo||'—'}</td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.proximo_passo||'—'}</td></tr>`).join('');
 }
 
@@ -649,7 +695,7 @@ function renderOpps(){
     const ms=!q||o.nome.toLowerCase().includes(q)||o.cliente_nome.toLowerCase().includes(q)||profName(o.criado_por).toLowerCase().includes(q);
     return ms&&(!fase||o.fase===fase);
   });
-  document.getElementById('tb-opps').innerHTML=list.length===0?'<tr><td colspan="6"><div class="empty">Sem oportunidades</div></td></tr>':
+  document.getElementById('tb-opps').innerHTML=list.length===0?'<tr><td colspan="6"><div class="empty" style="padding:24px">Sem oportunidades com os filtros atuais.</div></td></tr>':
     list.map(o=>{const d=daysLeft(o.data_fecho);const urg=d!==null&&d<=7&&o.estado==='aberta';
       return`<tr ${urg?'style="background:rgba(255,87,87,.03)"':''}>
         <td><strong>${o.nome}</strong><br><span style="font-size:10px;color:var(--t3)">${o.cliente_nome}</span></td>
@@ -664,7 +710,7 @@ function renderOpps(){
 // EQUIPA
 function renderEquipa(){
   const coms=raw.profiles;
-  document.getElementById('equipa-grid').innerHTML=coms.length===0?'<div class="empty">Sem membros</div>':
+  document.getElementById('equipa-grid').innerHTML=coms.length===0?'<div class="empty"><div style="font-size:32px;margin-bottom:10px">◉</div><p>Ainda sem membros na equipa.<br>Clica em <strong>+ Adicionar membro</strong> para começar.</p></div>':
     coms.map((p,i)=>{
       const nv=raw.visitas.filter(v=>v.criado_por===p.id).length;
       const no=raw.opps.filter(o=>o.criado_por===p.id&&o.estado==='aberta').length;
@@ -690,9 +736,9 @@ function nav(view,btn){
   document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('on'));
   document.getElementById('view-'+view).classList.add('on');
   btn.classList.add('on');
-  const titles={dashboard:'Dashboard',alertas:'Alertas',pipeline:'Pipeline',relatorios:'Relatórios',ranking:'Ranking',visitas:'Todas as visitas',opps:'Oportunidades',equipa:'Equipa'};
+  const titles={dashboard:'Dashboard',alertas:'Alertas',pipeline:'Pipeline',relatorios:'Relatórios',ranking:'Ranking',visitas:'Todas as visitas',opps:'Oportunidades',equipa:'Equipa',clientes:'Clientes'};
   document.getElementById('page-title').textContent=titles[view]||view;
-  if(['pipeline','ranking','visitas','opps'].includes(view))renderAll();
+  if(['pipeline','ranking','visitas','opps','clientes'].includes(view))renderAll();
 }
 
 // ADICIONAR COMERCIAL
@@ -715,6 +761,104 @@ async function createComercial(){
 }
 
 document.getElementById('ap').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+// ── CLIENTES ──
+function renderClientes(){
+  const q=(document.getElementById('sc')?.value||'').toLowerCase();
+  const setor=document.getElementById('fcs')?.value||'';
+  const comId=document.getElementById('fcc')?.value||'';
+  const list=raw.clientes.filter(c=>{
+    const ms=!q||c.nome.toLowerCase().includes(q)||(c.contacto||'').toLowerCase().includes(q);
+    const mst=!setor||c.setor===setor;
+    const mc=!comId||c.criado_por===comId;
+    return ms&&mst&&mc;
+  });
+  const tb=document.getElementById('tb-clientes');
+  if(!tb)return;
+  if(!list.length){tb.innerHTML='<tr><td colspan="8"><div class="empty" style="padding:24px">Sem clientes ainda. Usa o botão <strong>+ Novo cliente</strong> para criar o primeiro.</div></td></tr>';return;}
+  tb.innerHTML=list.map(c=>{
+    const nv=raw.visitas.filter(v=>v.cliente_id===c.id).length;
+    const no=raw.opps.filter(o=>o.cliente_id===c.id&&o.estado==='aberta').length;
+    return`<tr>
+      <td><strong>${c.nome}</strong></td>
+      <td>${c.setor||'—'}</td>
+      <td>${c.contacto||'—'}</td>
+      <td>${c.tel||'—'}</td>
+      <td>${c.morada||'—'}</td>
+      <td>${profName(c.criado_por)}</td>
+      <td>${nv}</td>
+      <td>${no>0?`<span class="badge bba">${no}</span>`:'0'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function fillClienteComercialFilter(){
+  const el=document.getElementById('fcc');if(!el)return;
+  const cur=el.value;
+  const coms=raw.profiles.filter(p=>p.role==='comercial');
+  el.innerHTML=`<option value="">Todos os comerciais</option>`+coms.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+  el.value=cur;
+}
+
+// Modal novo cliente
+function openAddClienteModal(){
+  const coms=raw.profiles.filter(p=>p.role==='comercial');
+  document.getElementById('cl-comercial').innerHTML=`<option value="">— nenhum —</option>`+coms.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+  ['cl-nome','cl-tel','cl-contacto','cl-email','cl-morada','cl-notas'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('modal-cl-err').innerHTML='';
+  document.getElementById('modal-cliente').classList.add('on');
+}
+function closeClienteModal(){document.getElementById('modal-cliente').classList.remove('on');}
+
+async function saveCliente(){
+  const nome=document.getElementById('cl-nome').value.trim();
+  if(!nome){document.getElementById('modal-cl-err').innerHTML='<div style="background:rgba(255,87,87,.1);border:1px solid rgba(255,87,87,.3);color:var(--re);padding:9px 13px;border-radius:var(--r);font-size:12px">Nome obrigatório</div>';return;}
+  const btn=document.getElementById('cl-save-btn');btn.innerHTML='<span class="spin"></span>';btn.disabled=true;
+  const comId=document.getElementById('cl-comercial').value;
+  const{error}=await sb.from('clientes').insert({
+    nome,
+    setor:document.getElementById('cl-setor').value,
+    tel:document.getElementById('cl-tel').value,
+    contacto:document.getElementById('cl-contacto').value,
+    email:document.getElementById('cl-email').value,
+    morada:document.getElementById('cl-morada').value,
+    notas:document.getElementById('cl-notas').value,
+    criado_por:comId||myId
+  });
+  btn.innerHTML='Guardar';btn.disabled=false;
+  if(error){document.getElementById('modal-cl-err').innerHTML=`<div style="background:rgba(255,87,87,.1);border:1px solid rgba(255,87,87,.3);color:var(--re);padding:9px 13px;border-radius:var(--r);font-size:12px">${error.message}</div>`;return;}
+  toast(`"${nome}" criado!`,'ok');
+  closeClienteModal();
+  await loadAll();
+}
 </script>
+<!-- MODAL NOVO CLIENTE -->
+<div class="modal-ov" id="modal-cliente" onclick="e=>{if(e.target===e.currentTarget)closeClienteModal()}">
+  <div class="modal">
+    <div class="modal-hd"><span class="modal-title">Novo cliente</span><button class="modal-close" onclick="closeClienteModal()">×</button></div>
+    <div class="modal-body">
+      <div class="fg"><label>Nome da empresa *</label><input type="text" id="cl-nome" autocomplete="off" placeholder="Ex: Metalúrgica Silva Lda"></div>
+      <div class="fg2">
+        <div class="fg"><label>Setor</label><select id="cl-setor"><option>Indústria</option><option>Retalho</option><option>Serviços</option><option>Tecnologia</option><option>Construção</option><option>Saúde</option><option>Outro</option></select></div>
+        <div class="fg"><label>Telefone</label><input type="tel" id="cl-tel"></div>
+      </div>
+      <div class="fg2">
+        <div class="fg"><label>Pessoa de contacto</label><input type="text" id="cl-contacto" autocomplete="off"></div>
+        <div class="fg"><label>Email</label><input type="email" id="cl-email" autocomplete="off"></div>
+      </div>
+      <div class="fg2">
+        <div class="fg"><label>Localidade</label><input type="text" id="cl-morada" autocomplete="off"></div>
+        <div class="fg"><label>Comercial responsável</label><select id="cl-comercial"></select></div>
+      </div>
+      <div class="fg"><label>Notas</label><textarea id="cl-notas"></textarea></div>
+      <div id="modal-cl-err" style="margin-top:12px"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn" onclick="closeClienteModal()">Cancelar</button>
+      <button class="btn btn-p" id="cl-save-btn" onclick="saveCliente()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
