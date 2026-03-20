@@ -362,13 +362,14 @@ tr:hover td{background:rgba(255,255,255,.015);}
             <input type="search" placeholder="Pesquisar cliente..." id="sc" oninput="renderClientes()">
             <select class="fsel" id="fcs" onchange="renderClientes()">
               <option value="">Todos os setores</option>
-              <option>Indústria</option><option>Retalho</option><option>Serviços</option>
-              <option>Tecnologia</option><option>Construção</option><option>Saúde</option><option>Outro</option>
+              <option>Alimentar</option><option>Farmacêutica</option><option>Revenda</option>
+              <option>Automóvel</option><option>Plásticos</option><option>Integrador</option>
+              <option>Papel</option><option>Energia</option><option>Metalúrgica</option><option>Têxteis</option>
             </select>
             <select class="fsel" id="fcc" onchange="renderClientes()"><option value="">Todos os comerciais</option></select>
           </div>
           <table>
-            <thead><tr><th>Cliente</th><th>Setor</th><th>Contacto</th><th>Tel.</th><th>Localidade</th><th>Comercial</th><th>Visitas</th><th>Oport.</th></tr></thead>
+            <thead><tr><th>Cliente</th><th>Setor</th><th>Contacto</th><th>Tel.</th><th>Localidade</th><th>Comercial</th><th>Visitas</th><th>Oport.</th><th></th></tr></thead>
             <tbody id="tb-clientes"></tbody>
           </table>
         </div>
@@ -784,7 +785,7 @@ function renderClientes(){
   });
   const tb=document.getElementById('tb-clientes');
   if(!tb)return;
-  if(!list.length){tb.innerHTML='<tr><td colspan="8"><div class="empty" style="padding:24px">Sem clientes ainda. Usa o botão <strong>+ Novo cliente</strong> para criar o primeiro.</div></td></tr>';return;}
+  if(!list.length){tb.innerHTML='<tr><td colspan="9"><div class="empty" style="padding:24px">Sem clientes ainda. Usa o botão <strong>+ Novo cliente</strong> para criar o primeiro.</div></td></tr>';return;}
   tb.innerHTML=list.map(c=>{
     const nv=raw.visitas.filter(v=>v.cliente_id===c.id).length;
     const no=raw.opps.filter(o=>o.cliente_id===c.id&&o.estado==='aberta').length;
@@ -797,6 +798,7 @@ function renderClientes(){
       <td>${profName(c.criado_por)}</td>
       <td>${nv}</td>
       <td>${no>0?`<span class="badge bba">${no}</span>`:'0'}</td>
+      <td><button class="btn btn-sm" onclick="editCliente('${c.id}')">✎ Editar</button></td>
     </tr>`;
   }).join('');
 }
@@ -815,6 +817,9 @@ function openAddClienteModal(){
   document.getElementById('cl-comercial').innerHTML=`<option value="">— nenhum —</option>`+coms.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
   ['cl-nome','cl-tel','cl-contacto','cl-email','cl-morada','cl-notas'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('modal-cl-err').innerHTML='';
+  // Reset to create mode
+  document.getElementById('modal-cl-title').textContent='Novo cliente';
+  document.getElementById('cl-save-btn').onclick=saveCliente;
   document.getElementById('modal-cliente').classList.add('on');
 }
 function closeClienteModal(){document.getElementById('modal-cliente').classList.remove('on');}
@@ -841,6 +846,50 @@ async function saveCliente(){
   await loadAll();
 }
 
+function editCliente(id){
+  const c=raw.clientes.find(x=>x.id===id);
+  if(!c)return;
+  // Fill modal with existing data
+  document.getElementById('cl-nome').value=c.nome||'';
+  document.getElementById('cl-setor').value=c.setor||'Alimentar';
+  document.getElementById('cl-tel').value=c.tel||'';
+  document.getElementById('cl-contacto').value=c.contacto||'';
+  document.getElementById('cl-email').value=c.email||'';
+  document.getElementById('cl-morada').value=c.morada||'';
+  document.getElementById('cl-notas').value=c.notas||'';
+  // Set comercial
+  const coms=raw.profiles.filter(p=>p.role==='comercial');
+  document.getElementById('cl-comercial').innerHTML=`<option value="">— nenhum —</option>`+coms.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+  document.getElementById('cl-comercial').value=c.criado_por||'';
+  // Change modal to edit mode
+  document.getElementById('modal-cl-title').textContent='Editar cliente';
+  document.getElementById('cl-save-btn').onclick=()=>updateCliente(id);
+  document.getElementById('modal-cl-err').innerHTML='';
+  document.getElementById('modal-cliente').classList.add('on');
+}
+
+async function updateCliente(id){
+  const nome=document.getElementById('cl-nome').value.trim();
+  if(!nome){document.getElementById('modal-cl-err').innerHTML='<div style="background:rgba(255,87,87,.1);border:1px solid rgba(255,87,87,.3);color:var(--re);padding:9px 13px;border-radius:var(--r);font-size:12px">Nome obrigatório</div>';return;}
+  const btn=document.getElementById('cl-save-btn');btn.innerHTML='<span class="spin"></span>';btn.disabled=true;
+  const comId=document.getElementById('cl-comercial').value;
+  const{error}=await sb.from('clientes').update({
+    nome,
+    setor:document.getElementById('cl-setor').value,
+    tel:document.getElementById('cl-tel').value,
+    contacto:document.getElementById('cl-contacto').value,
+    email:document.getElementById('cl-email').value,
+    morada:document.getElementById('cl-morada').value,
+    notas:document.getElementById('cl-notas').value,
+    criado_por:comId||myId
+  }).eq('id',id);
+  btn.innerHTML='Guardar';btn.disabled=false;
+  if(error){document.getElementById('modal-cl-err').innerHTML=`<div style="background:rgba(255,87,87,.1);border:1px solid rgba(255,87,87,.3);color:var(--re);padding:9px 13px;border-radius:var(--r);font-size:12px">${error.message}</div>`;return;}
+  toast(`"${nome}" atualizado!`,'ok');
+  closeClienteModal();
+  await loadAll();
+}
+
 function toggleTheme(){
   const isLight=document.documentElement.classList.toggle('light');
   const btn=document.getElementById('theme-btn');
@@ -860,11 +909,11 @@ function toggleTheme(){
 <!-- MODAL NOVO CLIENTE -->
 <div class="modal-ov" id="modal-cliente" onclick="e=>{if(e.target===e.currentTarget)closeClienteModal()}">
   <div class="modal">
-    <div class="modal-hd"><span class="modal-title">Novo cliente</span><button class="modal-close" onclick="closeClienteModal()">×</button></div>
+    <div class="modal-hd"><span class="modal-title" id="modal-cl-title">Novo cliente</span><button class="modal-close" onclick="closeClienteModal()">×</button></div>
     <div class="modal-body">
       <div class="fg"><label>Nome da empresa *</label><input type="text" id="cl-nome" autocomplete="off" placeholder="Ex: Metalúrgica Silva Lda"></div>
       <div class="fg2">
-        <div class="fg"><label>Setor</label><select id="cl-setor"><option>Indústria</option><option>Retalho</option><option>Serviços</option><option>Tecnologia</option><option>Construção</option><option>Saúde</option><option>Outro</option></select></div>
+        <div class="fg"><label>Setor</label><select id="cl-setor"><option>Alimentar</option><option>Farmacêutica</option><option>Revenda</option><option>Automóvel</option><option>Plásticos</option><option>Integrador</option><option>Papel</option><option>Energia</option><option>Metalúrgica</option><option>Têxteis</option></select></div>
         <div class="fg"><label>Telefone</label><input type="tel" id="cl-tel"></div>
       </div>
       <div class="fg2">
