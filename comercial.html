@@ -10,13 +10,19 @@
 :root{
   --bg:#0f0f0f;--s:#171717;--s2:#1e1e1e;--s3:#252525;
   --b:rgba(255,255,255,.07);--b2:rgba(255,255,255,.13);
-  --t:#f0f0f0;--t2:#888;--t3:#4a4a55;
+  --t:#f0f0f0;--t2:#999;--t3:#4a4a55;
   --ac:#e8ff5a;--bl:#4da6ff;--gr:#4dca7a;--or:#ff8c42;--re:#ff5757;--pu:#a78bfa;
   --r:10px;--rl:16px;--sb:env(safe-area-inset-bottom,0px);
 }
+:root.light{
+  --bg:#f4f5f7;--s:#ffffff;--s2:#f0f1f3;--s3:#e4e5e8;
+  --b:rgba(0,0,0,.08);--b2:rgba(0,0,0,.14);
+  --t:#1a1a1a;--t2:#555;--t3:#999;
+  --ac:#b8a000;--bl:#1a6fcc;--gr:#1a8a50;--or:#c96000;--re:#cc2222;--pu:#6b46c1;
+}
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;overflow:hidden;}
-body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--t);font-size:14px;display:flex;flex-direction:column;}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--t);font-size:15px;display:flex;flex-direction:column;}
 /* TOAST */
 #toasts{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:999;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;}
 .toast{padding:9px 18px;border-radius:30px;font-size:13px;font-weight:600;opacity:0;transform:translateY(-8px);transition:all .25s;white-space:nowrap;}
@@ -25,7 +31,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:v
 .terr{background:var(--re);color:#fff;}
 .tinf{background:var(--s3);color:var(--t);border:1px solid var(--b2);}
 /* AUTH */
-.auth{flex:1;display:flex;align-items:center;justify-content:center;padding:20px;}
+.auth{flex:1;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--bg);}
 .auth-box{background:var(--s);border:1px solid var(--b2);border-radius:var(--rl);padding:32px;width:100%;max-width:360px;}
 .auth-logo{font-size:22px;font-weight:800;text-align:center;margin-bottom:4px;}
 .auth-logo em{color:var(--ac);font-style:normal;}
@@ -61,7 +67,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:v
 /* STATS */
 .stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
 .stat{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:13px 10px;text-align:center;}
-.stat-n{font-size:26px;font-weight:800;letter-spacing:-1px;}
+.stat-n{font-size:28px;font-weight:800;letter-spacing:-1px;}
 .stat-l{font-size:9px;color:var(--t3);margin-top:2px;text-transform:uppercase;letter-spacing:.5px;}
 /* CARDS / ITEMS */
 .card{background:var(--s);border:1px solid var(--b);border-radius:var(--rl);margin-bottom:14px;overflow:hidden;}
@@ -183,6 +189,7 @@ textarea{resize:none;min-height:72px;font-size:14px;}
   <div class="topbar">
     <div class="topbar-logo">Flexbor <em>●</em></div>
     <span class="topbar-user" id="user-display"></span>
+    <button class="btn-ico" id="theme-btn" onclick="toggleTheme()" title="Mudar tema" style="font-size:18px">☀</button>
     <button class="btn-ico" onclick="doLogout()" title="Sair">⎋</button>
   </div>
   <div class="views" id="views">
@@ -735,6 +742,21 @@ function trunc(s,n){return s&&s.length>n?s.slice(0,n)+'…':s||'';}
 function esc(s){return(s||'').replace(/'/g,"\\'");}
 
 document.getElementById('ap').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+function toggleTheme(){
+  const isLight=document.documentElement.classList.toggle('light');
+  document.getElementById('theme-btn').textContent=isLight?'🌙':'☀';
+  localStorage.setItem('flexbor-theme',isLight?'light':'dark');
+}
+// Restaurar tema guardado
+(function(){
+  const t=localStorage.getItem('flexbor-theme');
+  if(t==='light'){
+    document.documentElement.classList.add('light');
+    const btn=document.getElementById('theme-btn');
+    if(btn) btn.textContent='🌙';
+  }
+})();
 </script>
 </body>
 </html>

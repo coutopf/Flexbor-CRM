@@ -11,12 +11,18 @@
 :root{
   --bg:#0c0c0d;--s:#131315;--s2:#1a1a1d;--s3:#222226;--s4:#2a2a2f;
   --b:rgba(255,255,255,.06);--b2:rgba(255,255,255,.11);--b3:rgba(255,255,255,.18);
-  --t:#efefef;--t2:#888;--t3:#4a4a55;
+  --t:#efefef;--t2:#999;--t3:#4a4a55;
   --ac:#e8ff5a;--bl:#4da6ff;--gr:#4dca7a;--or:#ff8c42;--re:#ff5757;--pu:#a78bfa;--te:#2dd4bf;
   --r:8px;--rl:14px;--rxl:20px;
 }
+:root.light{
+  --bg:#f4f5f7;--s:#ffffff;--s2:#f0f1f3;--s3:#e4e5e8;--s4:#d8d9dc;
+  --b:rgba(0,0,0,.08);--b2:rgba(0,0,0,.14);--b3:rgba(0,0,0,.22);
+  --t:#1a1a1a;--t2:#555;--t3:#999;
+  --ac:#8b7200;--bl:#1a6fcc;--gr:#1a8a50;--or:#c96000;--re:#cc2222;--pu:#6b46c1;--te:#0f766e;
+}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--t);min-height:100vh;font-size:13px;}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--t);min-height:100vh;font-size:14px;}
 /* TOAST */
 #toasts{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
 .toast{padding:9px 16px;border-radius:30px;font-size:12px;font-weight:600;opacity:0;transform:translateX(12px);transition:all .2s;white-space:nowrap;}
@@ -25,7 +31,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:v
 .terr{background:var(--re);color:#fff;}
 .tinf{background:var(--s4);color:var(--t);border:1px solid var(--b2);}
 /* AUTH */
-.auth{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.auth{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--bg);}
 .auth-box{background:var(--s);border:1px solid var(--b2);border-radius:var(--rxl);padding:36px;width:100%;max-width:380px;}
 .auth-logo{font-size:22px;font-weight:800;text-align:center;margin-bottom:4px;}
 .auth-logo em{color:var(--pu);font-style:normal;}
@@ -51,7 +57,7 @@ textarea{resize:none;min-height:72px;}
 .sb-nav{padding:10px;flex:1;overflow-y:auto;}
 .sb-sec{margin-bottom:4px;}
 .sb-lbl{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:1.2px;padding:10px 10px 4px;}
-.sb-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r);cursor:pointer;color:var(--t2);font-size:12px;font-weight:500;border:none;background:none;width:100%;text-align:left;transition:all .15s;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r);cursor:pointer;color:var(--t2);font-size:13px;font-weight:500;border:none;background:none;width:100%;text-align:left;transition:all .15s;}
 .sb-item:hover{background:var(--s3);color:var(--t);}
 .sb-item.on{background:rgba(167,139,250,.1);color:var(--pu);}
 .sb-ico{width:16px;text-align:center;font-size:14px;flex-shrink:0;}
@@ -97,7 +103,7 @@ textarea{resize:none;min-height:72px;}
 .s-pu::before{background:var(--pu);}
 .s-bl::before{background:var(--bl);}
 .stat-lbl{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
-.stat-val{font-size:28px;font-weight:800;letter-spacing:-1.5px;line-height:1;}
+.stat-val{font-size:30px;font-weight:800;letter-spacing:-1.5px;line-height:1;}
 .stat-sub{font-size:11px;color:var(--t3);margin-top:6px;}
 /* CARD */
 .card{background:var(--s);border:1px solid var(--b);border-radius:var(--rl);overflow:hidden;margin-bottom:16px;}
@@ -107,7 +113,7 @@ textarea{resize:none;min-height:72px;}
 /* TABLE */
 table{width:100%;border-collapse:collapse;}
 th{padding:8px 18px;text-align:left;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--b);}
-td{padding:11px 18px;font-size:12px;border-bottom:1px solid var(--b);vertical-align:middle;}
+td{padding:11px 18px;font-size:13px;border-bottom:1px solid var(--b);vertical-align:middle;}
 tr:last-child td{border-bottom:none;}
 tr:hover td{background:rgba(255,255,255,.015);}
 .tbl-search{padding:10px 18px;border-bottom:1px solid var(--b);display:flex;gap:8px;}
@@ -230,7 +236,10 @@ tr:hover td{background:rgba(255,255,255,.015);}
         <div><div class="sb-uname" id="user-name">Gestor</div><div class="sb-urole">Administrador</div></div>
       </div>
       <div class="rt-row"><div class="rt-dot"></div><span>Dados em tempo real</span></div>
-      <button class="btn btn-sm" style="margin-top:10px;width:100%;justify-content:center;color:var(--t3)" onclick="doLogout()">↩ Sair</button>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-sm" style="flex:1;justify-content:center" onclick="toggleTheme()" id="theme-btn">☀ Tema</button>
+        <button class="btn btn-sm" style="flex:1;justify-content:center;color:var(--t3)" onclick="doLogout()">↩ Sair</button>
+      </div>
     </div>
   </aside>
 
@@ -831,6 +840,22 @@ async function saveCliente(){
   closeClienteModal();
   await loadAll();
 }
+
+function toggleTheme(){
+  const isLight=document.documentElement.classList.toggle('light');
+  const btn=document.getElementById('theme-btn');
+  if(btn) btn.innerHTML=isLight?'🌙 Tema':'☀ Tema';
+  localStorage.setItem('flexbor-theme',isLight?'light':'dark');
+  setTimeout(renderAll,50);
+}
+(function(){
+  const t=localStorage.getItem('flexbor-theme');
+  if(t==='light'){
+    document.documentElement.classList.add('light');
+    const btn=document.getElementById('theme-btn');
+    if(btn) btn.innerHTML='🌙 Tema';
+  }
+})();
 </script>
 <!-- MODAL NOVO CLIENTE -->
 <div class="modal-ov" id="modal-cliente" onclick="e=>{if(e.target===e.currentTarget)closeClienteModal()}">
