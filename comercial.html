@@ -2,7 +2,9 @@
 <html lang="pt">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Cache-Control" content="no-cache">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Flexbor CRM — Comercial</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -15,10 +17,10 @@
   --r:10px;--rl:16px;--sb:env(safe-area-inset-bottom,0px);
 }
 :root.light{
-  --bg:#f4f5f7;--s:#ffffff;--s2:#f0f1f3;--s3:#e4e5e8;
-  --b:rgba(0,0,0,.08);--b2:rgba(0,0,0,.14);
-  --t:#1a1a1a;--t2:#555;--t3:#999;
-  --ac:#b8a000;--bl:#1a6fcc;--gr:#1a8a50;--or:#c96000;--re:#cc2222;--pu:#6b46c1;
+  --bg:#f0f2f5;--s:#ffffff;--s2:#e8eaed;--s3:#dde0e5;
+  --b:rgba(0,0,0,.1);--b2:rgba(0,0,0,.18);
+  --t:#000000;--t2:#333333;--t3:#666666;
+  --ac:#7a6000;--bl:#0052a3;--gr:#0a6e36;--or:#a34d00;--re:#b30000;--pu:#5b21b6;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;overflow:hidden;}
@@ -177,6 +179,9 @@ textarea{resize:none;min-height:72px;font-size:14px;}
   <div class="auth-box">
     <div class="auth-logo">Flexbor <em>●</em></div>
     <div class="auth-sub">Área comercial</div>
+    <div style="text-align:center;margin-bottom:16px">
+      <button onclick="clearSession()" style="background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer;text-decoration:underline">Problemas a entrar? Limpar sessão</button>
+    </div>
     <div id="auth-err"></div>
     <div class="fg"><label>Email</label><input type="email" id="ae" placeholder="o.teu@flexbor.pt" autocomplete="email" inputmode="email"></div>
     <div class="fg"><label>Password</label><input type="password" id="ap" placeholder="••••••••" autocomplete="current-password"></div>
@@ -380,7 +385,7 @@ textarea{resize:none;min-height:72px;font-size:14px;}
 <script>
 const SB_URL='https://oowaowtlwpnypryrlzle.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vd2Fvd3Rsd3BueXByeXJsemxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MTg3MjgsImV4cCI6MjA4OTQ5NDcyOH0.ktXfapdiPevW_12uKSKogWbjUQDZLXmSWh9WSV8T3Po';
-const sb=supabase.createClient(SB_URL,SB_KEY);
+const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{storageKey:'flexbor-com-v1'}});
 
 let me=null, myId=null;
 let D={clientes:[],visitas:[],opps:[],tarefas:[]};
@@ -441,7 +446,7 @@ sb.auth.onAuthStateChange(async(ev,session)=>{
 // LOAD — comercial só vê os seus dados
 async function loadAll(){
   const[c,v,o,t]=await Promise.all([
-    sb.from('clientes').select('*').eq('criado_por',myId).order('created_at',{ascending:false}),
+    sb.from('clientes').select('*').eq('criado_por',myId).order('nome',{ascending:true}),
     sb.from('visitas').select('*').eq('criado_por',myId).order('data',{ascending:false}),
     sb.from('oportunidades').select('*').eq('criado_por',myId).order('created_at',{ascending:false}),
     sb.from('tarefas').select('*').eq('criado_por',myId).order('data_limite')
@@ -742,6 +747,16 @@ function trunc(s,n){return s&&s.length>n?s.slice(0,n)+'…':s||'';}
 function esc(s){return(s||'').replace(/'/g,"\\'");}
 
 document.getElementById('ap').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+function clearSession(){
+  // Clear all Supabase auth storage
+  Object.keys(localStorage).forEach(k=>{
+    if(k.startsWith('sb-')||k.startsWith('supabase')||k.startsWith('flexbor-')) localStorage.removeItem(k);
+  });
+  Object.keys(sessionStorage).forEach(k=>{
+    if(k.startsWith('sb-')||k.startsWith('supabase')) sessionStorage.removeItem(k);
+  });
+  window.location.reload();
+}
 
 function toggleTheme(){
   const isLight=document.documentElement.classList.toggle('light');

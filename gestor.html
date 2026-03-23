@@ -2,7 +2,9 @@
 <html lang="pt">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Cache-Control" content="no-cache">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flexbor CRM — Gestor</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -16,10 +18,10 @@
   --r:8px;--rl:14px;--rxl:20px;
 }
 :root.light{
-  --bg:#f4f5f7;--s:#ffffff;--s2:#f0f1f3;--s3:#e4e5e8;--s4:#d8d9dc;
-  --b:rgba(0,0,0,.08);--b2:rgba(0,0,0,.14);--b3:rgba(0,0,0,.22);
-  --t:#1a1a1a;--t2:#555;--t3:#999;
-  --ac:#8b7200;--bl:#1a6fcc;--gr:#1a8a50;--or:#c96000;--re:#cc2222;--pu:#6b46c1;--te:#0f766e;
+  --bg:#f0f2f5;--s:#ffffff;--s2:#e8eaed;--s3:#dde0e5;--s4:#d0d3d8;
+  --b:rgba(0,0,0,.1);--b2:rgba(0,0,0,.18);--b3:rgba(0,0,0,.28);
+  --t:#000000;--t2:#333333;--t3:#666666;
+  --ac:#7a6000;--bl:#0052a3;--gr:#0a6e36;--or:#a34d00;--re:#b30000;--pu:#5b21b6;--te:#0f766e;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--t);min-height:100vh;font-size:14px;}
@@ -198,6 +200,9 @@ tr:hover td{background:rgba(255,255,255,.015);}
   <div class="auth-box">
     <div class="auth-logo">Flexbor <em>●</em></div>
     <div class="auth-badge"><span>Gestor</span></div>
+    <div style="text-align:center;margin-bottom:12px">
+      <button onclick="clearSession()" style="background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer;text-decoration:underline">Problemas a entrar? Limpar sessão</button>
+    </div>
     <div id="auth-err" style="margin-bottom:12px"></div>
     <div class="fg"><label>Email</label><input type="email" id="ae" placeholder="gestor@flexbor.pt" autocomplete="email"></div>
     <div class="fg"><label>Password</label><input type="password" id="ap" placeholder="••••••••" autocomplete="current-password"></div>
@@ -326,7 +331,7 @@ tr:hover td{background:rgba(255,255,255,.015);}
             <input type="search" placeholder="Pesquisar cliente, comercial..." id="sv" oninput="renderVisitas()">
             <select class="fsel" id="fvt" onchange="renderVisitas()"><option value="">Todos os tipos</option><option>Presencial</option><option>Videochamada</option><option>Telefone</option></select>
           </div>
-          <table><thead><tr><th>Data</th><th>Cliente</th><th>Tipo</th><th>Comercial</th><th>Objetivo</th><th>Próximo passo</th></tr></thead>
+          <table><thead><tr><th>Data</th><th>Cliente</th><th>Tipo</th><th>Comercial</th><th>Objetivo</th><th>Próximo passo</th><th></th></tr></thead>
           <tbody id="tb-vis"></tbody></table>
         </div>
       </div>
@@ -338,7 +343,7 @@ tr:hover td{background:rgba(255,255,255,.015);}
             <input type="search" placeholder="Pesquisar..." id="so" oninput="renderOpps()">
             <select class="fsel" id="fof" onchange="renderOpps()"><option value="">Todas as fases</option><option>Prospeção</option><option>Qualificação</option><option>Proposta</option><option>Negociação</option><option>Fechado — Ganho</option><option>Fechado — Perdido</option></select>
           </div>
-          <table><thead><tr><th>Oportunidade</th><th>Fase</th><th>Valor</th><th>Prob.</th><th>Fecho</th><th>Comercial</th></tr></thead>
+          <table><thead><tr><th>Oportunidade</th><th>Fase</th><th>Valor</th><th>Prob.</th><th>Fecho</th><th>Comercial</th><th></th></tr></thead>
           <tbody id="tb-opps"></tbody></table>
         </div>
       </div>
@@ -407,7 +412,7 @@ tr:hover td{background:rgba(255,255,255,.015);}
 <script>
 const SB_URL='https://oowaowtlwpnypryrlzle.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vd2Fvd3Rsd3BueXByeXJsemxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MTg3MjgsImV4cCI6MjA4OTQ5NDcyOH0.ktXfapdiPevW_12uKSKogWbjUQDZLXmSWh9WSV8T3Po';
-const sb=supabase.createClient(SB_URL,SB_KEY);
+const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{storageKey:'flexbor-ges-v1'}});
 
 let me=null, myId=null;
 let raw={profiles:[],clientes:[],visitas:[],opps:[],tarefas:[]};
@@ -481,7 +486,7 @@ function setupRealtime(){
 async function loadAll(){
   const[pr,cl,vi,op,ta]=await Promise.all([
     sb.from('profiles').select('*'),
-    sb.from('clientes').select('*').order('created_at',{ascending:false}),
+    sb.from('clientes').select('*').order('nome',{ascending:true}),
     sb.from('visitas').select('*').order('data',{ascending:false}),
     sb.from('oportunidades').select('*').order('created_at',{ascending:false}),
     sb.from('tarefas').select('*').order('data_limite')
@@ -692,8 +697,16 @@ function renderVisitas(){
     const ms=!q||v.cliente_nome.toLowerCase().includes(q)||(v.objetivo||'').toLowerCase().includes(q)||profName(v.criado_por).toLowerCase().includes(q);
     return ms&&(!tipo||v.tipo===tipo);
   });
-  document.getElementById('tb-vis').innerHTML=list.length===0?'<tr><td colspan="6"><div class="empty" style="padding:24px">Sem visitas para mostrar com os filtros atuais.</div></td></tr>':
-    list.map(v=>`<tr><td>${fmtDate(v.data)}</td><td><strong>${v.cliente_nome}</strong></td><td><span class="badge ${tipoCls(v.tipo)}">${v.tipo}</span></td><td>${profName(v.criado_por)}</td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.objetivo||'—'}</td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.proximo_passo||'—'}</td></tr>`).join('');
+  document.getElementById('tb-vis').innerHTML=list.length===0?'<tr><td colspan="7"><div class="empty" style="padding:24px">Sem visitas para mostrar com os filtros atuais.</div></td></tr>':
+    list.map(v=>`<tr style="cursor:pointer" onclick="showVisitaDetail('${v.id}')">
+        <td>${fmtDate(v.data)}</td>
+        <td><strong>${v.cliente_nome}</strong></td>
+        <td><span class="badge ${tipoCls(v.tipo)}">${v.tipo}</span></td>
+        <td>${profName(v.criado_por)}</td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.objetivo||'—'}</td>
+        <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.proximo_passo||'—'}</td>
+        <td><span style="font-size:11px;color:var(--bl)">Ver →</span></td>
+      </tr>`).join('');
 }
 
 // OPPS
@@ -705,15 +718,16 @@ function renderOpps(){
     const ms=!q||o.nome.toLowerCase().includes(q)||o.cliente_nome.toLowerCase().includes(q)||profName(o.criado_por).toLowerCase().includes(q);
     return ms&&(!fase||o.fase===fase);
   });
-  document.getElementById('tb-opps').innerHTML=list.length===0?'<tr><td colspan="6"><div class="empty" style="padding:24px">Sem oportunidades com os filtros atuais.</div></td></tr>':
+  document.getElementById('tb-opps').innerHTML=list.length===0?'<tr><td colspan="7"><div class="empty" style="padding:24px">Sem oportunidades com os filtros atuais.</div></td></tr>':
     list.map(o=>{const d=daysLeft(o.data_fecho);const urg=d!==null&&d<=7&&o.estado==='aberta';
-      return`<tr ${urg?'style="background:rgba(255,87,87,.03)"':''}>
+      return`<tr ${urg?'style="background:rgba(255,87,87,.03);cursor:pointer"':'style="cursor:pointer"'} onclick="showOppDetail('${o.id}')">
         <td><strong>${o.nome}</strong><br><span style="font-size:10px;color:var(--t3)">${o.cliente_nome}</span></td>
         <td><span class="badge ${fm[o.fase]||'bbgr'}">${o.fase}</span></td>
         <td style="font-family:monospace">${fmtEur(o.valor)}</td>
         <td><div style="display:flex;align-items:center;gap:6px"><div class="prog" style="width:44px"><div class="prog-fill" style="width:${o.probabilidade||0}%;background:var(--pu)"></div></div><span style="font-size:10px;color:var(--t3)">${o.probabilidade||0}%</span></div></td>
         <td>${d!==null?`<span class="badge ${urg?'bbr':d<=30?'bbo':'bbgr'}">${d===0?'Hoje':d<0?'Expirado':d+'d'}</span>`:'—'}</td>
-        <td>${profName(o.criado_por)}</td></tr>`;
+        <td>${profName(o.criado_por)}</td>
+        <td><span style="font-size:11px;color:var(--bl)">Ver →</span></td></tr>`;
     }).join('');
 }
 
@@ -798,7 +812,10 @@ function renderClientes(){
       <td>${profName(c.criado_por)}</td>
       <td>${nv}</td>
       <td>${no>0?`<span class="badge bba">${no}</span>`:'0'}</td>
-      <td><button class="btn btn-sm" onclick="editCliente('${c.id}')">✎ Editar</button></td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="editCliente('${c.id}')">✎ Editar</button>
+        <button class="btn btn-sm" onclick="openContactos('${c.id}','${esc2(c.nome)}')">👤 Contactos</button>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -905,6 +922,138 @@ function toggleTheme(){
     if(btn) btn.innerHTML='🌙 Tema';
   }
 })();
+
+
+// ── DETAIL PANELS ──
+function closePanel(type){ document.getElementById('panel-'+type).classList.remove('on'); }
+
+function showVisitaDetail(id){
+  const v=raw.visitas.find(x=>x.id===id);
+  if(!v)return;
+  const body=document.getElementById('panel-visita-body');
+  body.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      ${detailField('Data',fmtDate(v.data))}
+      ${detailField('Tipo','<span class="badge '+tipoCls(v.tipo)+'">'+v.tipo+'</span>')}
+      ${detailField('Cliente','<strong>'+v.cliente_nome+'</strong>')}
+      ${detailField('Comercial',profName(v.criado_por))}
+    </div>
+    ${v.objetivo?detailBlock('Objetivo',v.objetivo):''}
+    ${v.notas?detailBlock('Resultado / Notas',v.notas):''}
+    ${v.proximo_passo?detailBlock('Próximo passo','<span style="color:var(--bl)">→ '+v.proximo_passo+'</span>'):''}
+    <div style="font-size:11px;color:var(--t3)">Registado em ${new Date(v.created_at).toLocaleDateString('pt-PT')}</div>`;
+  document.getElementById('panel-visita').classList.add('on');
+}
+
+function showOppDetail(id){
+  const o=raw.opps.find(x=>x.id===id);
+  if(!o)return;
+  const fm={Prospeção:'bbgr',Qualificação:'bbl',Proposta:'bbo',Negociação:'bbp','Fechado — Ganho':'bbg','Fechado — Perdido':'bbr'};
+  const d=daysLeft(o.data_fecho);
+  const body=document.getElementById('panel-opp-body');
+  body.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      ${detailField('Oportunidade','<strong>'+o.nome+'</strong>')}
+      ${detailField('Cliente',o.cliente_nome)}
+      ${detailField('Fase','<span class="badge '+(fm[o.fase]||'bbgr')+'">'+o.fase+'</span>')}
+      ${detailField('Comercial',profName(o.criado_por))}
+      ${detailField('Valor','<strong style="font-family:monospace;font-size:15px">'+fmtEur(o.valor)+'</strong>')}
+      ${detailField('Probabilidade',`
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;height:6px;background:var(--s3);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${o.probabilidade||0}%;background:var(--pu);border-radius:3px"></div>
+          </div>
+          <span style="font-weight:700">${o.probabilidade||0}%</span>
+        </div>`)}
+      ${o.data_fecho?detailField('Fecho previsto',(d!==null&&d<=7?'<span class="badge bbr">':'<span class="badge bbgr">')+fmtDate(o.data_fecho)+(d!==null?' ('+( d===0?'hoje':d<0?'expirado':d+'d')+')':'')+'</span>'):''}
+    </div>
+    ${o.notas?detailBlock('Notas',o.notas):''}
+    <div style="font-size:11px;color:var(--t3)">Criado em ${new Date(o.created_at).toLocaleDateString('pt-PT')}</div>`;
+  document.getElementById('panel-opp').classList.add('on');
+}
+
+function detailField(label,value){
+  return`<div style="background:var(--s2);border-radius:var(--r);padding:10px 12px">
+    <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">${label}</div>
+    <div style="font-size:13px">${value}</div>
+  </div>`;
+}
+function detailBlock(label,value){
+  return`<div style="background:var(--s2);border-radius:var(--r);padding:12px 14px">
+    <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">${label}</div>
+    <div style="font-size:13px;line-height:1.5">${value}</div>
+  </div>`;
+}
+
+// ── CONTACTOS ──
+let currentClienteId=null;
+
+function esc2(s){ return (s||'').replace(/'/g,"\'").replace(/"/g,'&quot;'); }
+
+function openContactos(cid,nome){
+  currentClienteId=cid;
+  document.getElementById('modal-ct-title').textContent='Contactos — '+nome;
+  ['ct-nome','ct-cargo','ct-tel','ct-email','ct-notas'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ct-err').innerHTML='';
+  loadContactos(cid);
+  document.getElementById('modal-contactos').classList.add('on');
+}
+function closeContactosModal(){ document.getElementById('modal-contactos').classList.remove('on'); currentClienteId=null; }
+
+async function loadContactos(cid){
+  const{data}=await sb.from('contactos').select('*').eq('cliente_id',cid).order('nome');
+  const list=data||[];
+  const el=document.getElementById('ct-list');
+  if(!list.length){ el.innerHTML='<div style="text-align:center;padding:14px;font-size:13px;color:var(--t3)">Sem contactos ainda.</div>'; return; }
+  el.innerHTML=list.map(c=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--b)">
+      <div style="width:36px;height:36px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">${(c.nome||'?')[0].toUpperCase()}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700">${c.nome}</div>
+        ${c.cargo?`<div style="font-size:11px;color:var(--t3)">${c.cargo}</div>`:''}
+        <div style="font-size:11px;color:var(--t2);margin-top:2px">${[c.tel,c.email].filter(Boolean).join(' · ')||''}</div>
+        ${c.notas?`<div style="font-size:11px;color:var(--t3);margin-top:2px;font-style:italic">${c.notas}</div>`:''}
+      </div>
+      <button class="btn btn-sm" style="color:var(--re);border-color:rgba(255,87,87,.2);background:none;flex-shrink:0" onclick="deleteContacto('${c.id}')">✕</button>
+    </div>`).join('');
+}
+
+async function addContacto(){
+  const nome=document.getElementById('ct-nome').value.trim();
+  if(!nome||!currentClienteId){document.getElementById('ct-err').innerHTML='<div style="color:var(--re);font-size:12px;margin-bottom:8px">Nome obrigatório</div>';return;}
+  document.getElementById('ct-err').innerHTML='';
+  const{error}=await sb.from('contactos').insert({
+    cliente_id:currentClienteId,
+    nome,
+    cargo:document.getElementById('ct-cargo').value,
+    tel:document.getElementById('ct-tel').value,
+    email:document.getElementById('ct-email').value,
+    notas:document.getElementById('ct-notas').value
+  });
+  if(error){document.getElementById('ct-err').innerHTML=`<div style="color:var(--re);font-size:12px;margin-bottom:8px">${error.message}</div>`;return;}
+  ['ct-nome','ct-cargo','ct-tel','ct-email','ct-notas'].forEach(id=>document.getElementById(id).value='');
+  toast('Contacto adicionado!','ok');
+  loadContactos(currentClienteId);
+}
+
+async function deleteContacto(id){
+  await sb.from('contactos').delete().eq('id',id);
+  toast('Eliminado','inf');
+  loadContactos(currentClienteId);
+}
+
+
+
+function clearSession(){
+  // Clear all Supabase auth storage
+  Object.keys(localStorage).forEach(k=>{
+    if(k.startsWith('sb-')||k.startsWith('supabase')||k.startsWith('flexbor-')) localStorage.removeItem(k);
+  });
+  Object.keys(sessionStorage).forEach(k=>{
+    if(k.startsWith('sb-')||k.startsWith('supabase')) sessionStorage.removeItem(k);
+  });
+  window.location.reload();
+}
 </script>
 <!-- MODAL NOVO CLIENTE -->
 <div class="modal-ov" id="modal-cliente" onclick="e=>{if(e.target===e.currentTarget)closeClienteModal()}">
@@ -930,6 +1079,66 @@ function toggleTheme(){
     <div class="modal-ft">
       <button class="btn" onclick="closeClienteModal()">Cancelar</button>
       <button class="btn btn-p" id="cl-save-btn" onclick="saveCliente()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONTACTOS CLIENTE -->
+<div class="modal-ov" id="modal-contactos" onclick="e=>{if(e.target===e.currentTarget)closeContactosModal()}">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-hd">
+      <span class="modal-title" id="modal-ct-title">Contactos</span>
+      <button class="modal-close" onclick="closeContactosModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- Lista de contactos existentes -->
+      <div id="ct-list" style="margin-bottom:16px"></div>
+      <!-- Formulário novo contacto -->
+      <div style="background:var(--s2);border-radius:var(--r);padding:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:12px">Adicionar contacto</div>
+        <div class="fg2">
+          <div class="fg"><label>Nome *</label><input type="text" id="ct-nome" autocomplete="off" placeholder="João Silva"></div>
+          <div class="fg"><label>Cargo</label><input type="text" id="ct-cargo" autocomplete="off" placeholder="Director Comercial"></div>
+        </div>
+        <div class="fg2">
+          <div class="fg"><label>Telefone</label><input type="tel" id="ct-tel" placeholder="+351 ..."></div>
+          <div class="fg"><label>Email</label><input type="email" id="ct-email" placeholder="joao@empresa.pt"></div>
+        </div>
+        <div class="fg"><label>Notas</label><input type="text" id="ct-notas" autocomplete="off" placeholder="Ex: decisor de compras"></div>
+        <div id="ct-err" style="margin-bottom:10px"></div>
+        <button class="btn btn-p" onclick="addContacto()" style="width:100%;justify-content:center">+ Adicionar contacto</button>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn" onclick="closeContactosModal()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL PANEL: VISITA -->
+<div class="modal-ov" id="panel-visita" onclick="e=>{if(e.target===e.currentTarget)closePanel('visita')}">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-hd">
+      <span class="modal-title">Detalhe da visita</span>
+      <button class="modal-close" onclick="closePanel('visita')">×</button>
+    </div>
+    <div class="modal-body" id="panel-visita-body" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="modal-ft">
+      <button class="btn" onclick="closePanel('visita')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL PANEL: OPORTUNIDADE -->
+<div class="modal-ov" id="panel-opp" onclick="e=>{if(e.target===e.currentTarget)closePanel('opp')}">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-hd">
+      <span class="modal-title">Detalhe da oportunidade</span>
+      <button class="modal-close" onclick="closePanel('opp')">×</button>
+    </div>
+    <div class="modal-body" id="panel-opp-body" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="modal-ft">
+      <button class="btn" onclick="closePanel('opp')">Fechar</button>
     </div>
   </div>
 </div>

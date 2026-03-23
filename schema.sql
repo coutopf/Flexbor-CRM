@@ -90,3 +90,22 @@ create trigger on_auth_user_created
 
 -- Sem RLS — acesso controlado pela aplicação
 -- O gestor vê tudo, o comercial filtra por criado_por no código
+
+-- Tabela de contactos (adicionada posteriormente)
+create table if not exists public.contactos (
+  id uuid default gen_random_uuid() primary key,
+  cliente_id uuid references public.clientes(id) on delete cascade,
+  nome text not null,
+  cargo text,
+  tel text,
+  email text,
+  notas text,
+  created_at timestamptz default now()
+);
+
+-- Dar permissões
+GRANT ALL ON public.contactos TO anon, authenticated;
+
+-- Política permissiva (consistente com as outras tabelas)
+ALTER TABLE public.contactos ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "acesso_total" ON public.contactos FOR ALL USING (true) WITH CHECK (true);
