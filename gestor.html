@@ -370,6 +370,7 @@ tr:hover td{background:rgba(255,255,255,.015);}
               <option>Alimentar</option><option>Farmacêutica</option><option>Revenda</option>
               <option>Automóvel</option><option>Plásticos</option><option>Integrador</option>
               <option>Papel</option><option>Energia</option><option>Metalúrgica</option><option>Têxteis</option>
+              <option>Outro</option>
             </select>
             <select class="fsel" id="fcc" onchange="renderClientes()"><option value="">Todos os comerciais</option></select>
           </div>
@@ -868,7 +869,7 @@ function editCliente(id){
   if(!c)return;
   // Fill modal with existing data
   document.getElementById('cl-nome').value=c.nome||'';
-  document.getElementById('cl-setor').value=c.setor||'Alimentar';
+  document.getElementById('cl-setor').value=c.setor||'';
   document.getElementById('cl-tel').value=c.tel||'';
   document.getElementById('cl-contacto').value=c.contacto||'';
   document.getElementById('cl-email').value=c.email||'';
@@ -992,9 +993,9 @@ function esc2(s){ return (s||'').replace(/'/g,"\'").replace(/"/g,'&quot;'); }
 
 function openContactos(cid,nome){
   currentClienteId=cid;
+  editingCtGesId=null;
   document.getElementById('modal-ct-title').textContent='Contactos — '+nome;
-  ['ct-nome','ct-cargo','ct-tel','ct-email','ct-notas'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('ct-err').innerHTML='';
+  cancelEditContactoGes();
   loadContactos(cid);
   document.getElementById('modal-contactos').classList.add('on');
 }
@@ -1009,31 +1010,57 @@ async function loadContactos(cid){
     <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--b)">
       <div style="width:36px;height:36px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">${(c.nome||'?')[0].toUpperCase()}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:700">${c.nome}</div>
-        ${c.cargo?`<div style="font-size:11px;color:var(--t3)">${c.cargo}</div>`:''}
-        <div style="font-size:11px;color:var(--t2);margin-top:2px">${[c.tel,c.email].filter(Boolean).join(' · ')||''}</div>
-        ${c.notas?`<div style="font-size:11px;color:var(--t3);margin-top:2px;font-style:italic">${c.notas}</div>`:''}
+        <div style="font-size:13px;font-weight:700">${c.nome}${c.cargo?` <span style="font-weight:400;color:var(--t2)">· ${c.cargo}</span>`:''}</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:1px">${[c.tel,c.email].filter(Boolean).join(' · ')||'Sem contacto'}</div>
+        ${c.notas?`<div style="font-size:11px;color:var(--t3);font-style:italic">${c.notas}</div>`:''}
       </div>
-      <button class="btn btn-sm" style="color:var(--re);border-color:rgba(255,87,87,.2);background:none;flex-shrink:0" onclick="deleteContacto('${c.id}')">✕</button>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button class="btn btn-sm" onclick="startEditContactoGes('${c.id}','${esc2(c.nome)}','${esc2(c.cargo||'')}','${esc2(c.tel||'')}','${esc2(c.email||'')}','${esc2(c.notas||'')}')">✎</button>
+        <button class="btn btn-sm" style="color:var(--re);border-color:rgba(255,87,87,.2);background:none" onclick="deleteContacto('${c.id}')">✕</button>
+      </div>
     </div>`).join('');
 }
 
-async function addContacto(){
+let editingCtGesId=null;
+
+async function saveContactoGes(){
   const nome=document.getElementById('ct-nome').value.trim();
   if(!nome||!currentClienteId){document.getElementById('ct-err').innerHTML='<div style="color:var(--re);font-size:12px;margin-bottom:8px">Nome obrigatório</div>';return;}
   document.getElementById('ct-err').innerHTML='';
-  const{error}=await sb.from('contactos').insert({
-    cliente_id:currentClienteId,
-    nome,
-    cargo:document.getElementById('ct-cargo').value,
-    tel:document.getElementById('ct-tel').value,
-    email:document.getElementById('ct-email').value,
-    notas:document.getElementById('ct-notas').value
-  });
+  const btn=document.getElementById('ct-save-ges');btn.innerHTML='<span class="spin"></span>';btn.disabled=true;
+  const payload={nome,cargo:document.getElementById('ct-cargo').value,tel:document.getElementById('ct-tel').value,email:document.getElementById('ct-email').value,notas:document.getElementById('ct-notas').value};
+  let error;
+  if(editingCtGesId){
+    ({error}=await sb.from('contactos').update(payload).eq('id',editingCtGesId));
+  } else {
+    ({error}=await sb.from('contactos').insert({...payload,cliente_id:currentClienteId}));
+  }
+  btn.innerHTML=editingCtGesId?'Guardar alterações':'+ Adicionar contacto';btn.disabled=false;
   if(error){document.getElementById('ct-err').innerHTML=`<div style="color:var(--re);font-size:12px;margin-bottom:8px">${error.message}</div>`;return;}
-  ['ct-nome','ct-cargo','ct-tel','ct-email','ct-notas'].forEach(id=>document.getElementById(id).value='');
-  toast('Contacto adicionado!','ok');
+  toast(editingCtGesId?'Contacto atualizado!':'Contacto adicionado!','ok');
+  cancelEditContactoGes();
   loadContactos(currentClienteId);
+}
+
+function startEditContactoGes(id,nome,cargo,tel,email,notas){
+  editingCtGesId=id;
+  document.getElementById('ct-nome').value=nome;
+  document.getElementById('ct-cargo').value=cargo;
+  document.getElementById('ct-tel').value=tel;
+  document.getElementById('ct-email').value=email;
+  document.getElementById('ct-notas').value=notas;
+  document.getElementById('ct-ges-form-title').textContent='Editar contacto';
+  document.getElementById('ct-save-ges').innerHTML='Guardar alterações';
+  document.getElementById('ct-cancel-ges').style.display='';
+  document.getElementById('ct-nome').focus();
+}
+function cancelEditContactoGes(){
+  editingCtGesId=null;
+  ['ct-nome','ct-cargo','ct-tel','ct-email','ct-notas'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ct-ges-form-title').textContent='Adicionar contacto';
+  document.getElementById('ct-save-ges').innerHTML='+ Adicionar contacto';
+  document.getElementById('ct-cancel-ges').style.display='none';
+  document.getElementById('ct-err').innerHTML='';
 }
 
 async function deleteContacto(id){
@@ -1062,7 +1089,7 @@ function clearSession(){
     <div class="modal-body">
       <div class="fg"><label>Nome da empresa *</label><input type="text" id="cl-nome" autocomplete="off" placeholder="Ex: Metalúrgica Silva Lda"></div>
       <div class="fg2">
-        <div class="fg"><label>Setor</label><select id="cl-setor"><option>Alimentar</option><option>Farmacêutica</option><option>Revenda</option><option>Automóvel</option><option>Plásticos</option><option>Integrador</option><option>Papel</option><option>Energia</option><option>Metalúrgica</option><option>Têxteis</option></select></div>
+        <div class="fg"><label>Setor</label><select id="cl-setor"><option>Alimentar</option><option>Farmacêutica</option><option>Revenda</option><option>Automóvel</option><option>Plásticos</option><option>Integrador</option><option>Papel</option><option>Energia</option><option>Metalúrgica</option><option>Têxteis</option><option>Outro</option></select></div>
         <div class="fg"><label>Telefone</label><input type="tel" id="cl-tel"></div>
       </div>
       <div class="fg2">
@@ -1095,7 +1122,7 @@ function clearSession(){
       <div id="ct-list" style="margin-bottom:16px"></div>
       <!-- Formulário novo contacto -->
       <div style="background:var(--s2);border-radius:var(--r);padding:14px">
-        <div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:12px">Adicionar contacto</div>
+        <div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:12px" id="ct-ges-form-title">Adicionar contacto</div>
         <div class="fg2">
           <div class="fg"><label>Nome *</label><input type="text" id="ct-nome" autocomplete="off" placeholder="João Silva"></div>
           <div class="fg"><label>Cargo</label><input type="text" id="ct-cargo" autocomplete="off" placeholder="Director Comercial"></div>
@@ -1106,7 +1133,10 @@ function clearSession(){
         </div>
         <div class="fg"><label>Notas</label><input type="text" id="ct-notas" autocomplete="off" placeholder="Ex: decisor de compras"></div>
         <div id="ct-err" style="margin-bottom:10px"></div>
-        <button class="btn btn-p" onclick="addContacto()" style="width:100%;justify-content:center">+ Adicionar contacto</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-full" id="ct-cancel-ges" style="display:none" onclick="cancelEditContactoGes()">Cancelar</button>
+          <button class="btn btn-p btn-full" id="ct-save-ges" onclick="saveContactoGes()">+ Adicionar contacto</button>
+        </div>
       </div>
     </div>
     <div class="modal-ft">

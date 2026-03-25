@@ -117,11 +117,11 @@ textarea{resize:none;min-height:72px;font-size:14px;}
 .wpage{display:none;}
 .wpage.on{display:block;}
 /* DRAWER */
-.dov{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;display:none;}
-.dov.on{display:block;}
-.drawer{position:fixed;bottom:0;left:0;right:0;background:var(--s);border-radius:var(--rl) var(--rl) 0 0;z-index:201;transform:translateY(100%);transition:transform .28s cubic-bezier(.32,.72,0,1);max-height:94vh;display:flex;flex-direction:column;padding-bottom:var(--sb);}
-.drawer.on{transform:translateY(0);}
-.drw-handle{width:36px;height:4px;background:var(--b2);border-radius:2px;margin:10px auto 0;flex-shrink:0;}
+.dov{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;display:none;align-items:center;justify-content:center;padding:16px;}
+.dov.on{display:flex;}
+.drawer{background:var(--s);border-radius:var(--rl);z-index:201;width:100%;max-width:520px;max-height:88vh;display:flex;flex-direction:column;transform:scale(.95);opacity:0;transition:transform .22s ease,opacity .22s ease;}
+.drawer.on{transform:scale(1);opacity:1;}
+.drw-handle{display:none;}
 .drw-hd{padding:14px 16px 12px;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
 .drw-title{font-size:16px;font-weight:800;}
 .drw-close{background:none;border:none;color:var(--t3);font-size:22px;cursor:pointer;line-height:1;}
@@ -164,8 +164,6 @@ textarea{resize:none;min-height:72px;font-size:14px;}
 .tab.on{background:var(--s3);color:var(--t);border-color:var(--b2);}
 @media(min-width:600px){
   .views{max-width:640px;margin:0 auto;width:100%;}
-  .drawer{max-width:580px;left:50%;transform:translateX(-50%) translateY(100%);border-radius:var(--rl);bottom:16px;}
-  .drawer.on{transform:translateX(-50%) translateY(0);}
   .fab{right:calc(50% - 310px + 18px);}
   .fab-menu{right:calc(50% - 310px + 16px);}
 }
@@ -282,10 +280,14 @@ textarea{resize:none;min-height:72px;font-size:14px;}
       </div>
       <div class="fg">
         <label>Cliente *</label>
-        <select id="v-cliente">
+        <select id="v-cliente" onchange="loadContactosVisita()">
           <option value="">— selecionar cliente —</option>
         </select>
         <div class="fhint">Não encontras? <button style="background:none;border:none;color:var(--ac);font-size:11px;cursor:pointer;padding:0" onclick="criarClienteRapido()">Criar agora →</button></div>
+      </div>
+      <div class="fg" id="v-contacto-wrap" style="display:none">
+        <label>Contacto</label>
+        <select id="v-contacto"><option value="">— selecionar contacto —</option></select>
       </div>
       <div class="fg"><label>Objetivo</label><input type="text" id="v-obj" placeholder="Ex: apresentar proposta, prospeção..." autocomplete="off"></div>
     </div>
@@ -310,11 +312,11 @@ textarea{resize:none;min-height:72px;font-size:14px;}
 <!-- DRAWER CLIENTE -->
 <div class="drawer" id="drw-cliente">
   <div class="drw-handle"></div>
-  <div class="drw-hd"><span class="drw-title">Novo cliente</span><button class="drw-close" onclick="closeDrw()">×</button></div>
+  <div class="drw-hd"><span class="drw-title" id="drw-cliente-title">Novo cliente</span><button class="drw-close" onclick="closeDrw()">×</button></div>
   <div class="drw-body">
     <div class="fg"><label>Nome da empresa *</label><input type="text" id="c-nome" autocomplete="off"><div class="ferr" id="c-err">Obrigatório</div></div>
     <div class="fg2">
-      <div class="fg"><label>Setor</label><select id="c-setor"><option>Alimentar</option><option>Farmacêutica</option><option>Revenda</option><option>Automóvel</option><option>Plásticos</option><option>Integrador</option><option>Papel</option><option>Energia</option><option>Metalúrgica</option><option>Têxteis</option></select></div>
+      <div class="fg"><label>Setor</label><select id="c-setor"><option>Alimentar</option><option>Farmacêutica</option><option>Revenda</option><option>Automóvel</option><option>Plásticos</option><option>Integrador</option><option>Papel</option><option>Energia</option><option>Metalúrgica</option><option>Têxteis</option><option>Outro</option></select></div>
       <div class="fg"><label>Telefone</label><input type="tel" id="c-tel" inputmode="tel"></div>
     </div>
     <div class="fg"><label>Pessoa de contacto</label><input type="text" id="c-contacto" autocomplete="off"></div>
@@ -506,6 +508,8 @@ function renderClientes(){
       <div class="irow-acts">
         <button class="btn btn-sm" onclick="openDrwCli('visita','${c.id}')">📍 Visita</button>
         <button class="btn btn-sm" onclick="openDrwCli('opp','${c.id}')">◇ Oport.</button>
+        <button class="btn btn-sm" onclick="editClienteCom('${c.id}')">✎ Editar</button>
+        <button class="btn btn-sm" onclick="openContactosCom('${c.id}','${esc(c.nome)}')">👤 Contactos</button>
         <button class="btn btn-sm btn-del" onclick="confirmDel('clientes','${c.id}','${esc(c.nome)}')">Eliminar</button>
       </div></div>`;
   }).join('');
@@ -596,6 +600,7 @@ function openDrw(type){
   const today=new Date().toISOString().split('T')[0];
   if(type==='visita'){document.getElementById('v-data').value=today;resetWizard();}
   if(type==='tarefa')document.getElementById('t-data').value=today;
+  if(type==='cliente'){document.getElementById('drw-cliente-title').textContent='Novo cliente';document.getElementById('c-save-btn').onclick=saveCliente;}
   activeDrw=type;
   document.getElementById('dov').classList.add('on');
   document.getElementById('drw-'+type).classList.add('on');
@@ -621,6 +626,8 @@ function resetWizard(){
   document.getElementById('v-fu').value='';
   document.getElementById('v-copp').value='';
   document.getElementById('v-cliente').value='';
+  document.getElementById('v-contacto-wrap').style.display='none';
+  document.getElementById('v-contacto').innerHTML='<option value="">— selecionar contacto —</option>';
   document.getElementById('v-data').value=new Date().toISOString().split('T')[0];
 }
 function wNext(){
@@ -667,6 +674,7 @@ async function saveVisita(){
     data:document.getElementById('v-data').value,tipo:document.getElementById('v-tipo').value,
     cliente_id:cid,cliente_nome:cliente?.nome||'',objetivo:document.getElementById('v-obj').value,
     notas:document.getElementById('v-notas').value,proximo_passo:document.getElementById('v-prox').value,
+    contacto_id:document.getElementById('v-contacto').value||null,
     criado_por:myId
   });
   if(error){toast('Erro: '+error.message,'err');btn.innerHTML='Guardar ✓';btn.disabled=false;return;}
@@ -772,6 +780,177 @@ function toggleTheme(){
     if(btn) btn.textContent='🌙';
   }
 })();
+
+
+// ── EDIT CLIENT (comercial) ──
+function editClienteCom(cid){
+  const c=D.clientes.find(x=>x.id===cid);
+  if(!c)return;
+  document.getElementById('c-nome').value=c.nome||'';
+  document.getElementById('c-setor').value=c.setor||'Alimentar';
+  document.getElementById('c-tel').value=c.tel||'';
+  document.getElementById('c-contacto').value=c.contacto||'';
+  document.getElementById('c-email').value=c.email||'';
+  document.getElementById('c-morada').value=c.morada||'';
+  document.getElementById('c-notas').value=c.notas||'';
+  document.getElementById('c-err').style.display='none';
+  document.getElementById('drw-cliente-title').textContent='Editar cliente';
+  document.getElementById('c-save-btn').onclick=()=>updateClienteCom(cid);
+  activeDrw='cliente';
+  document.getElementById('dov').classList.add('on');
+  document.getElementById('drw-cliente').classList.add('on');
+}
+async function updateClienteCom(id){
+  const nome=document.getElementById('c-nome').value.trim();
+  if(!nome){document.getElementById('c-err').style.display='block';return;}
+  document.getElementById('c-err').style.display='none';
+  const btn=document.getElementById('c-save-btn');btn.innerHTML='<span class="spin"></span>';btn.disabled=true;
+  const{error}=await sb.from('clientes').update({
+    nome,setor:document.getElementById('c-setor').value,
+    tel:document.getElementById('c-tel').value,contacto:document.getElementById('c-contacto').value,
+    email:document.getElementById('c-email').value,morada:document.getElementById('c-morada').value,
+    notas:document.getElementById('c-notas').value
+  }).eq('id',id);
+  btn.innerHTML='Guardar';btn.disabled=false;
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast('Cliente atualizado!','ok');
+  // Reset drawer to create mode
+  document.getElementById('drw-cliente-title').textContent='Novo cliente';
+  document.getElementById('c-save-btn').onclick=saveCliente;
+  closeDrw();await loadAll();
+}
+
+// ── CONTACTOS (comercial) ──
+let currentCtClienteId=null, editingCtId=null;
+
+function openContactosCom(cid,nome){
+  currentCtClienteId=cid;
+  document.getElementById('drw-ct-title').textContent='Contactos — '+nome;
+  clearCtForm();
+  loadContactosCom(cid);
+  document.getElementById('dov-contactos').classList.add('on');
+  document.getElementById('drw-contactos').classList.add('on');
+}
+function closeDovContactos(){
+  document.getElementById('dov-contactos').classList.remove('on');
+  document.getElementById('drw-contactos').classList.remove('on');
+  currentCtClienteId=null;editingCtId=null;
+}
+function clearCtForm(){
+  ['ct-nome','ct-cargo','ct-tel','ct-email','ct-notas'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ct-err').innerHTML='';
+  document.getElementById('ct-save-btn').textContent='+ Adicionar';
+  document.getElementById('ct-form-title').textContent='Adicionar contacto';
+  document.getElementById('ct-cancel-edit').style.display='none';
+  editingCtId=null;
+}
+function cancelEditContacto(){ clearCtForm(); }
+
+async function loadContactosCom(cid){
+  const{data}=await sb.from('contactos').select('*').eq('cliente_id',cid).order('nome');
+  const list=data||[];
+  const el=document.getElementById('ct-list-com');
+  if(!list.length){el.innerHTML='<div class="empty" style="padding:14px 0"><p>Sem contactos ainda.</p></div>';return;}
+  el.innerHTML=list.map(c=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--b)">
+      <div style="width:34px;height:34px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">${(c.nome||'?')[0].toUpperCase()}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700">${c.nome}${c.cargo?` <span style="font-weight:400;color:var(--t2)">· ${c.cargo}</span>`:''}</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:1px">${[c.tel,c.email].filter(Boolean).join(' · ')||'Sem contacto'}</div>
+        ${c.notas?`<div style="font-size:11px;color:var(--t3);font-style:italic">${c.notas}</div>`:''}
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button class="btn btn-sm" onclick="startEditContacto('${c.id}','${esc(c.nome)}','${esc(c.cargo||'')}','${esc(c.tel||'')}','${esc(c.email||'')}','${esc(c.notas||'')}')">✎</button>
+        <button class="btn btn-sm btn-del" onclick="deleteContactoCom('${c.id}')">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function startEditContacto(id,nome,cargo,tel,email,notas){
+  editingCtId=id;
+  document.getElementById('ct-nome').value=nome;
+  document.getElementById('ct-cargo').value=cargo;
+  document.getElementById('ct-tel').value=tel;
+  document.getElementById('ct-email').value=email;
+  document.getElementById('ct-notas').value=notas;
+  document.getElementById('ct-form-title').textContent='Editar contacto';
+  document.getElementById('ct-save-btn').textContent='Guardar alterações';
+  document.getElementById('ct-cancel-edit').style.display='';
+  document.getElementById('ct-nome').focus();
+}
+
+async function saveContactoCom(){
+  const nome=document.getElementById('ct-nome').value.trim();
+  if(!nome||!currentCtClienteId){document.getElementById('ct-err').innerHTML='<div style="color:var(--re);font-size:12px;margin-bottom:8px">Nome obrigatório</div>';return;}
+  document.getElementById('ct-err').innerHTML='';
+  const btn=document.getElementById('ct-save-btn');btn.innerHTML='<span class="spin spin-w"></span>';btn.disabled=true;
+  const payload={nome,cargo:document.getElementById('ct-cargo').value,tel:document.getElementById('ct-tel').value,email:document.getElementById('ct-email').value,notas:document.getElementById('ct-notas').value};
+  let error;
+  if(editingCtId){
+    ({error}=await sb.from('contactos').update(payload).eq('id',editingCtId));
+  } else {
+    ({error}=await sb.from('contactos').insert({...payload,cliente_id:currentCtClienteId}));
+  }
+  btn.innerHTML=editingCtId?'Guardar alterações':'+ Adicionar';btn.disabled=false;
+  if(error){document.getElementById('ct-err').innerHTML=`<div style="color:var(--re);font-size:12px;margin-bottom:8px">${error.message}</div>`;return;}
+  toast(editingCtId?'Contacto atualizado!':'Contacto adicionado!','ok');
+  clearCtForm();
+  loadContactosCom(currentCtClienteId);
+}
+
+async function deleteContactoCom(id){
+  await sb.from('contactos').delete().eq('id',id);
+  toast('Eliminado','inf');
+  loadContactosCom(currentCtClienteId);
+}
+
+// ── LOAD CONTACTS FOR VISIT FORM ──
+async function loadContactosVisita(){
+  const cid=document.getElementById('v-cliente').value;
+  const wrap=document.getElementById('v-contacto-wrap');
+  const sel=document.getElementById('v-contacto');
+  if(!cid){wrap.style.display='none';sel.innerHTML='<option value="">— selecionar contacto —</option>';return;}
+  const{data}=await sb.from('contactos').select('*').eq('cliente_id',cid).order('nome');
+  const list=data||[];
+  if(!list.length){wrap.style.display='none';return;}
+  sel.innerHTML='<option value="">— selecionar contacto —</option>'+list.map(c=>`<option value="${c.id}">${c.nome}${c.cargo?' — '+c.cargo:''}</option>`).join('');
+  wrap.style.display='';
+}
+
 </script>
+<!-- DRAWER CONTACTOS -->
+<div class="dov" id="dov-contactos" onclick="e=>{if(e.target===e.currentTarget)closeDovContactos()}">
+  <div class="drawer" id="drw-contactos">
+    <div class="drw-handle"></div>
+    <div class="drw-hd">
+      <span class="drw-title" id="drw-ct-title">Contactos</span>
+      <button class="drw-close" onclick="closeDovContactos()">×</button>
+    </div>
+    <div class="drw-body">
+      <div id="ct-list-com" style="margin-bottom:16px"></div>
+      <div style="background:var(--s2);border-radius:var(--r);padding:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:12px" id="ct-form-title">Adicionar contacto</div>
+        <div class="fg2">
+          <div class="fg"><label>Nome *</label><input type="text" id="ct-nome" autocomplete="off" placeholder="João Silva"></div>
+          <div class="fg"><label>Cargo</label><input type="text" id="ct-cargo" autocomplete="off" placeholder="Director Comercial"></div>
+        </div>
+        <div class="fg2">
+          <div class="fg"><label>Telefone</label><input type="tel" id="ct-tel" placeholder="+351 ..."></div>
+          <div class="fg"><label>Email</label><input type="email" id="ct-email" placeholder="joao@empresa.pt"></div>
+        </div>
+        <div class="fg"><label>Notas</label><input type="text" id="ct-notas" autocomplete="off" placeholder="Ex: decisor de compras"></div>
+        <div id="ct-err" style="margin-bottom:10px"></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-full" id="ct-cancel-edit" style="display:none" onclick="cancelEditContacto()">Cancelar</button>
+          <button class="btn btn-p btn-full" id="ct-save-btn" onclick="saveContactoCom()">+ Adicionar</button>
+        </div>
+      </div>
+    </div>
+    <div class="drw-ft">
+      <button class="btn btn-full" onclick="closeDovContactos()">Fechar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
