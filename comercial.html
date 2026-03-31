@@ -1102,27 +1102,33 @@ function showOppDetail(id){
   const today=new Date();today.setHours(0,0,0,0);
   const d=o.data_fecho?Math.ceil((new Date(o.data_fecho)-today)/86400000):null;
   const body=document.getElementById('opp-detail-body');
+  
   let html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
     +dfld('Oportunidade','<strong>'+o.nome+'</strong>')
     +dfld('Cliente',o.cliente_nome)
     +dfld('Fase','<span class="badge '+(fm[o.fase]||'bbgr')+'">'+o.fase+'</span>')
     +dfld('Valor','<strong style="font-family:monospace;font-size:15px">'+fmtEur(o.valor)+'</strong>')
     +'</div>';
+    
   html+=dfld('Probabilidade','<div style="display:flex;align-items:center;gap:10px;margin-top:2px"><div style="flex:1;height:6px;background:var(--s3);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+(o.probabilidade||0)+'%;background:var(--bl);border-radius:3px"></div></div><strong>'+(o.probabilidade||0)+'%</strong></div>');
+  
   if(o.data_fecho){
     const dc=d!==null&&d<=7?'bbr':d!==null&&d<=30?'bbo':'bbgr';
     const dl=d===null?'':' <span style="color:var(--t3);font-size:11px">'+(d===0?'(hoje)':d<0?'(expirado)':'('+d+'d)')+'</span>';
     html+=dfld('Fecho previsto','<span class="badge '+dc+'">'+fmtDate(o.data_fecho)+'</span>'+dl);
   }
+  
   if(o.notas) html+=dfld('Notas',o.notas);
-  html+='<div style="margin-top:4px"><label style="margin-bottom:6px;display:block">Atualizar fase</label>'
-    +'<select class="btn btn-full" style="text-align:left" onchange="updateFase(''+o.id+'',this.value);closeModal('opp-detail')">'
+  
+  // CORREÇÃO APLICADA NESTE BLOCO COM TEMPLATE LITERALS:
+  html += `<div style="margin-top:4px"><label style="margin-bottom:6px;display:block">Atualizar fase</label>
+    <select class="btn btn-full" style="text-align:left" onchange="updateFase('${o.id}', this.value); closeModal('opp-detail')">`
     +['Prospeção','Qualificação','Proposta','Negociação','Fechado — Ganho','Fechado — Perdido'].map(f=>'<option'+(f===o.fase?' selected':'')+'>'+f+'</option>').join('')
     +'</select></div>';
+    
   body.innerHTML=html;
   document.getElementById('mov-opp-detail').classList.add('on');
 }
-
 
 document.getElementById('ap').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 </script>
