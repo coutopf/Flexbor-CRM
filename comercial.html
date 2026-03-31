@@ -206,15 +206,34 @@ textarea{resize:none;min-height:72px;font-size:13px;}
 .tab{padding:5px 14px;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;color:var(--t2);border:1px solid var(--b2);background:none;font-family:inherit;transition:all .15s;}
 .tab.on{background:var(--bl);color:#fff;border-color:var(--bl);}
 
+/* BOTTOM NAV (mobile) */
+.botnav{display:none;background:var(--s);border-top:1px solid var(--b);position:fixed;bottom:0;left:0;right:0;z-index:50;padding-bottom:env(safe-area-inset-bottom,0px);}
+.bn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px 6px;border:none;background:none;color:var(--t3);cursor:pointer;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;transition:color .15s;position:relative;}
+.bn.on{color:var(--bl);}
+.bn-ico{font-size:18px;line-height:1;}
+.bn-badge{position:absolute;top:5px;right:calc(50% - 16px);background:var(--re);color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:10px;display:none;}
+.bn-badge.on{display:block;}
+/* SORTABLE HEADERS */
+.sortable{cursor:pointer;user-select:none;white-space:nowrap;}
+.sortable:hover{color:var(--t);}
+.sort-ico{display:inline-block;margin-left:4px;opacity:.5;font-size:10px;}
+.sortable.asc .sort-ico::after{content:'↑';}
+.sortable.desc .sort-ico::after{content:'↓';}
+.sortable:not(.asc):not(.desc) .sort-ico::after{content:'↕';}
 @media(max-width:900px){
   .sidebar{display:none;}
   .main{margin-left:0;}
   .stats3{grid-template-columns:repeat(3,1fr);}
+  .botnav{display:flex;}
+  .content{padding-bottom:70px;}
+  .topbar-new-wrap{display:none;}
 }
 @media(max-width:600px){
   .stats3{grid-template-columns:1fr 1fr;}
-  .content{padding:14px 16px;}
+  .content{padding:14px 16px 70px;}
   .fg2{grid-template-columns:1fr;}
+  table{font-size:12px;}
+  th,td{padding:8px 10px;}
 }
 </style>
 </head>
@@ -265,10 +284,19 @@ textarea{resize:none;min-height:72px;font-size:13px;}
     </div>
   </aside>
 
+  <!-- BOTTOM NAV (mobile) -->
+  <div class="botnav" id="botnav">
+    <button class="bn on" id="bn-home" onclick="nav('home',this)"><span class="bn-ico">⊞</span>Início</button>
+    <button class="bn" id="bn-clientes" onclick="nav('clientes',this)"><span class="bn-ico">◉</span>Clientes</button>
+    <button class="bn" id="bn-visitas" onclick="nav('visitas',this)"><span class="bn-ico">📍</span>Visitas</button>
+    <button class="bn" id="bn-opps" onclick="nav('opps',this)"><span class="bn-ico">◇</span>Oport.</button>
+    <button class="bn" id="bn-tarefas" onclick="nav('tarefas',this)"><span class="bn-ico">✓</span>Tarefas<span class="bn-badge" id="bn-badge-t"></span></button>
+  </div>
+
   <div class="main">
     <div class="topbar">
       <div class="page-title" id="page-title">Início</div>
-      <button class="btn btn-p btn-sm" id="topbar-new-btn" onclick="handleNewBtn()">+ Registar visita</button>
+      <span class="topbar-new-wrap"><button class="btn btn-p btn-sm" id="topbar-new-btn" onclick="handleNewBtn()">+ Registar visita</button></span>
     </div>
     <div class="content">
 
@@ -301,7 +329,14 @@ textarea{resize:none;min-height:72px;font-size:13px;}
             <input type="search" placeholder="Pesquisar cliente..." id="sc" oninput="renderClientes()" style="max-width:280px">
           </div>
           <table>
-            <thead><tr><th>Cliente</th><th>Setor</th><th>Contacto</th><th>Visitas</th><th>Oport.</th><th></th></tr></thead>
+            <thead><tr>
+  <th class="sortable" onclick="sortTable('clientes','nome')">Cliente<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('clientes','setor')">Setor<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('clientes','morada')">Localidade<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('clientes','nvisitas')">Visitas<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('clientes','nopps')">Oport.<span class="sort-ico"></span></th>
+  <th></th>
+</tr></thead>
             <tbody id="tb-clientes"></tbody>
           </table>
         </div>
@@ -311,7 +346,13 @@ textarea{resize:none;min-height:72px;font-size:13px;}
       <div class="view" id="view-visitas">
         <div class="card">
           <table>
-            <thead><tr><th>Data</th><th>Cliente</th><th>Tipo</th><th>Objetivo</th><th>Próximo passo</th></tr></thead>
+            <thead><tr>
+  <th class="sortable" onclick="sortTable('visitas','data')">Data<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('visitas','cliente_nome')">Cliente<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('visitas','tipo')">Tipo<span class="sort-ico"></span></th>
+  <th>Objetivo</th>
+  <th></th>
+</tr></thead>
             <tbody id="tb-visitas"></tbody>
           </table>
         </div>
@@ -321,7 +362,15 @@ textarea{resize:none;min-height:72px;font-size:13px;}
       <div class="view" id="view-opps">
         <div class="card">
           <table>
-            <thead><tr><th>Oportunidade</th><th>Cliente</th><th>Fase</th><th>Valor</th><th>Prob.</th><th>Fecho</th><th></th></tr></thead>
+            <thead><tr>
+  <th class="sortable" onclick="sortTable('opps','nome')">Oportunidade<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('opps','cliente_nome')">Cliente<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('opps','fase')">Fase<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('opps','valor')">Valor<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('opps','probabilidade')">Prob.<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('opps','data_fecho')">Fecho<span class="sort-ico"></span></th>
+  <th></th>
+</tr></thead>
             <tbody id="tb-opps"></tbody>
           </table>
         </div>
@@ -585,6 +634,7 @@ function renderStats(){
   document.getElementById('s-t').textContent=urg;
   const b=document.getElementById('badge-t'),pend=D.tarefas.filter(t=>t.estado==='pendente').length;
   pend>0?(b.textContent=pend,b.classList.add('on')):b.classList.remove('on');
+  const bnb=document.getElementById('bn-badge-t');if(bnb){pend>0?(bnb.textContent=pend,bnb.classList.add('on')):bnb.classList.remove('on');}
 }
 
 // ── HOME ──
@@ -613,19 +663,23 @@ function renderHome(){
 // ── CLIENTES ──
 function renderClientes(){
   const q=(document.getElementById('sc')?.value||'').toLowerCase();
-  const list=D.clientes.filter(c=>!q||c.nome.toLowerCase().includes(q)||(c.contacto||'').toLowerCase().includes(q));
+  let list=D.clientes.filter(c=>!q||c.nome.toLowerCase().includes(q)||(c.morada||'').toLowerCase().includes(c.nome.toLowerCase().includes(q)?c.nome:''));
+  if(!q) list=D.clientes;
+  else list=D.clientes.filter(c=>c.nome.toLowerCase().includes(q)||(c.morada||'').toLowerCase().includes(q)||(c.setor||'').toLowerCase().includes(q));
+  // apply sort
+  list=sortList(list,'clientes');
   const tb=document.getElementById('tb-clientes');
   if(!list.length){tb.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-ico">◉</div><p>Sem clientes ainda.</p><div class="empty-act"><button class="btn btn-p btn-sm" onclick="openModal('cliente')">+ Criar cliente</button></div></div></td></tr>`;return;}
   tb.innerHTML=list.map(c=>{
     const nv=D.visitas.filter(v=>v.cliente_id===c.id).length,no=D.opps.filter(o=>o.cliente_id===c.id&&o.estado==='aberta').length;
     return`<tr>
-      <td><strong>${c.nome}</strong>${c.morada?`<div style="font-size:11px;color:var(--t3)">${c.morada}</div>`:''}</td>
+      <td><strong>${c.nome}</strong></td>
       <td><span class="badge bbgr">${c.setor||'—'}</span></td>
-      <td>${c.contacto||'—'}${c.tel?`<div style="font-size:11px;color:var(--t3)">${c.tel}</div>`:''}</td>
+      <td style="color:var(--t2)">${c.morada||'—'}</td>
       <td>${nv}</td>
       <td>${no>0?`<span class="badge bbl">${no}</span>`:'0'}</td>
       <td>
-        <div style="display:flex;gap:4px">
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
           <button class="btn btn-sm" onclick="openModalWithCli('visita','${c.id}')">📍</button>
           <button class="btn btn-sm" onclick="openModalWithCli('opp','${c.id}')">◇</button>
           <button class="btn btn-sm" onclick="editCliente('${c.id}')">✎</button>
@@ -640,41 +694,43 @@ function renderClientes(){
 // ── VISITAS ──
 function renderVisitas(){
   const tb=document.getElementById('tb-visitas');
-  if(!D.visitas.length){tb.innerHTML=`<tr><td colspan="5"><div class="empty"><div class="empty-ico">📍</div><p>Sem visitas. Clica em <strong>+ Nova visita</strong>.</p></div></td></tr>`;return;}
-  tb.innerHTML=D.visitas.map(v=>`<tr>
+  const list=sortList([...D.visitas],'visitas');
+  if(!list.length){tb.innerHTML=`<tr><td colspan="5"><div class="empty"><div class="empty-ico">📍</div><p>Sem visitas. Clica em <strong>+ Nova visita</strong>.</p></div></td></tr>`;return;}
+  tb.innerHTML=list.map(v=>`<tr style="cursor:pointer" onclick="showVisitaDetail('${v.id}')">
     <td>${fmtDate(v.data)}</td>
     <td><strong>${v.cliente_nome}</strong></td>
     <td><span class="badge ${tipoCls(v.tipo)}">${v.tipo}</span></td>
-    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.objetivo||'—'}</td>
-    <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.proximo_passo||'—'}</td>
+    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t2)">${v.objetivo||'—'}</td>
+    <td><span style="font-size:11px;color:var(--bl);font-weight:600">Ver →</span></td>
   </tr>`).join('');
 }
 
 // ── OPPS ──
 function renderOpps(){
   const tb=document.getElementById('tb-opps');
-  if(!D.opps.length){tb.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-ico">◇</div><p>Sem oportunidades.<br><button class="btn btn-p btn-sm" style="margin-top:10px" onclick="openModal('opp')">+ Nova oportunidade</button></p></div></td></tr>`;return;}
+  const list=sortList([...D.opps],'opps');
+  if(!list.length){tb.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-ico">◇</div><p>Sem oportunidades.</p><div class="empty-act"><button class="btn btn-p btn-sm" onclick="openModal('opp')">+ Nova oportunidade</button></div></div></td></tr>`;return;}
   const fm={Prospeção:'bbgr',Qualificação:'bbl',Proposta:'bbo',Negociação:'bbp','Fechado — Ganho':'bbg','Fechado — Perdido':'bbr'};
   const today=new Date();today.setHours(0,0,0,0);
-  tb.innerHTML=D.opps.map(o=>{
+  tb.innerHTML=list.map(o=>{
     const d=o.data_fecho?Math.ceil((new Date(o.data_fecho)-today)/86400000):null;
     return`<tr>
-      <td><strong>${o.nome}</strong></td>
-      <td>${o.cliente_nome}</td>
+      <td style="cursor:pointer" onclick="showOppDetail('${o.id}')"><strong>${o.nome}</strong><div style="font-size:11px;color:var(--t3)">${o.cliente_nome}</div></td>
       <td><span class="badge ${fm[o.fase]||'bbgr'}">${o.fase}</span></td>
       <td style="font-family:monospace">${fmtEur(o.valor)}</td>
       <td>
         <div style="display:flex;align-items:center;gap:6px">
-          <div class="prog" style="width:50px"><div class="prog-fill" style="width:${o.probabilidade||0}%"></div></div>
+          <div class="prog" style="width:44px"><div class="prog-fill" style="width:${o.probabilidade||0}%"></div></div>
           <span style="font-size:11px;color:var(--t3)">${o.probabilidade||0}%</span>
         </div>
       </td>
       <td>${d!==null?`<span class="badge ${d<=0?'bbr':d<=7?'bbo':'bbgr'}">${d===0?'Hoje':d<0?'Expirado':d+'d'}</span>`:'—'}</td>
       <td>
-        <select class="btn btn-sm" style="padding:4px 8px" onchange="updateFase('${o.id}',this.value)">
+        <select class="btn btn-sm" style="padding:4px 8px" onchange="updateFase('${o.id}',this.value)" onclick="event.stopPropagation()">
           ${['Prospeção','Qualificação','Proposta','Negociação','Fechado — Ganho','Fechado — Perdido'].map(f=>`<option ${f===o.fase?'selected':''}>${f}</option>`).join('')}
         </select>
       </td>
+      <td><span style="font-size:11px;color:var(--bl);font-weight:600;cursor:pointer" onclick="showOppDetail('${o.id}')">Ver →</span></td>
     </tr>`;
   }).join('');
 }
@@ -715,8 +771,10 @@ function fillSelects(){
 function nav(view,btn){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.bn').forEach(b=>b.classList.remove('on'));
   document.getElementById('view-'+view).classList.add('on');
   if(btn) btn.classList.add('on');
+  const bnId='bn-'+view;const bnEl=document.getElementById(bnId);if(bnEl)bnEl.classList.add('on');
   const titles={home:'Início',clientes:'Clientes',visitas:'Visitas',opps:'Oportunidades',tarefas:'Tarefas'};
   document.getElementById('page-title').textContent=titles[view]||view;
   const newBtn=document.getElementById('topbar-new-btn');
@@ -982,7 +1040,109 @@ function fmtEur(v){return(v||0).toLocaleString('pt-PT',{minimumFractionDigits:0,
 function tipoCls(t){return{Presencial:'bbg',Videochamada:'bbl',Telefone:'bbo'}[t]||'bbgr';}
 function esc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 
+// ── SORT ──
+const sortState={clientes:{col:'nome',dir:'asc'},visitas:{col:'data',dir:'desc'},opps:{col:'created_at',dir:'desc'}};
+
+function sortTable(table,col){
+  const s=sortState[table];
+  if(s.col===col){s.dir=s.dir==='asc'?'desc':'asc';}
+  else{s.col=col;s.dir=(col==='data'||col==='data_fecho'||col==='created_at'||col==='valor'||col==='probabilidade')?'desc':'asc';}
+  // Update header indicators
+  const viewEl=document.querySelector('#view-'+table+' table');
+  if(viewEl) viewEl.querySelectorAll('.sortable').forEach(th=>{
+    th.classList.remove('asc','desc');
+    const m=th.getAttribute('onclick')&&th.getAttribute('onclick').match(/sortTable\('[^']+'\,'([^']+)'\)/);
+    if(m&&m[1]===s.col) th.classList.add(s.dir);
+  });
+  if(table==='clientes')renderClientes();
+  else if(table==='visitas')renderVisitas();
+  else if(table==='opps')renderOpps();
+}
+
+function sortList(list,table){
+  const{col,dir}=sortState[table];
+  return list.sort((a,b)=>{
+    let va=col==='nvisitas'?D.visitas.filter(v=>v.cliente_id===a.id).length:
+            col==='nopps'?D.opps.filter(o=>o.cliente_id===a.id&&o.estado==='aberta').length:
+            (a[col]??'');
+    let vb=col==='nvisitas'?D.visitas.filter(v=>v.cliente_id===b.id).length:
+            col==='nopps'?D.opps.filter(o=>o.cliente_id===b.id&&o.estado==='aberta').length:
+            (b[col]??'');
+    if(typeof va==='number'&&typeof vb==='number') return dir==='asc'?va-vb:vb-va;
+    return dir==='asc'?String(va).localeCompare(String(vb),'pt'):String(vb).localeCompare(String(va),'pt');
+  });
+}
+
+// ── DETAIL VIEWS ──
+function dfld(label,value){
+  return'<div style="background:var(--s2);border-radius:var(--r);padding:10px 13px">'
+    +'<div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;font-weight:700">'+label+'</div>'
+    +'<div style="font-size:13px;line-height:1.5">'+value+'</div></div>';
+}
+
+function showVisitaDetail(id){
+  const v=D.visitas.find(x=>x.id===id);if(!v)return;
+  const body=document.getElementById('visita-detail-body');
+  let html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    +dfld('Data',fmtDate(v.data))
+    +dfld('Tipo','<span class="badge '+tipoCls(v.tipo)+'">'+v.tipo+'</span>')
+    +dfld('Cliente','<strong>'+v.cliente_nome+'</strong>')
+    +'</div>';
+  if(v.objetivo) html+=dfld('Objetivo',v.objetivo);
+  if(v.notas) html+=dfld('O que aconteceu',v.notas);
+  if(v.proximo_passo) html+=dfld('Próximo passo','<span style="color:var(--bl)">→ '+v.proximo_passo+'</span>');
+  html+='<div style="font-size:11px;color:var(--t3)">Registado em '+(v.created_at?new Date(v.created_at).toLocaleDateString('pt-PT'):'-')+'</div>';
+  body.innerHTML=html;
+  document.getElementById('mov-visita-detail').classList.add('on');
+}
+
+function showOppDetail(id){
+  const o=D.opps.find(x=>x.id===id);if(!o)return;
+  const fm={Prospeção:'bbgr',Qualificação:'bbl',Proposta:'bbo',Negociação:'bbp','Fechado — Ganho':'bbg','Fechado — Perdido':'bbr'};
+  const today=new Date();today.setHours(0,0,0,0);
+  const d=o.data_fecho?Math.ceil((new Date(o.data_fecho)-today)/86400000):null;
+  const body=document.getElementById('opp-detail-body');
+  let html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    +dfld('Oportunidade','<strong>'+o.nome+'</strong>')
+    +dfld('Cliente',o.cliente_nome)
+    +dfld('Fase','<span class="badge '+(fm[o.fase]||'bbgr')+'">'+o.fase+'</span>')
+    +dfld('Valor','<strong style="font-family:monospace;font-size:15px">'+fmtEur(o.valor)+'</strong>')
+    +'</div>';
+  html+=dfld('Probabilidade','<div style="display:flex;align-items:center;gap:10px;margin-top:2px"><div style="flex:1;height:6px;background:var(--s3);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+(o.probabilidade||0)+'%;background:var(--bl);border-radius:3px"></div></div><strong>'+(o.probabilidade||0)+'%</strong></div>');
+  if(o.data_fecho){
+    const dc=d!==null&&d<=7?'bbr':d!==null&&d<=30?'bbo':'bbgr';
+    const dl=d===null?'':' <span style="color:var(--t3);font-size:11px">'+(d===0?'(hoje)':d<0?'(expirado)':'('+d+'d)')+'</span>';
+    html+=dfld('Fecho previsto','<span class="badge '+dc+'">'+fmtDate(o.data_fecho)+'</span>'+dl);
+  }
+  if(o.notas) html+=dfld('Notas',o.notas);
+  html+='<div style="margin-top:4px"><label style="margin-bottom:6px;display:block">Atualizar fase</label>'
+    +'<select class="btn btn-full" style="text-align:left" onchange="updateFase(''+o.id+'',this.value);closeModal('opp-detail')">'
+    +['Prospeção','Qualificação','Proposta','Negociação','Fechado — Ganho','Fechado — Perdido'].map(f=>'<option'+(f===o.fase?' selected':'')+'>'+f+'</option>').join('')
+    +'</select></div>';
+  body.innerHTML=html;
+  document.getElementById('mov-opp-detail').classList.add('on');
+}
+
+
 document.getElementById('ap').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 </script>
+<!-- MODAL DETALHE VISITA -->
+<div class="mov" id="mov-visita-detail" onclick="e=>{if(e.target===e.currentTarget)closeModal('visita-detail')}">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-hd"><span class="modal-title">Detalhe da visita</span><button class="modal-close" onclick="closeModal('visita-detail')">×</button></div>
+    <div class="modal-body" id="visita-detail-body" style="display:flex;flex-direction:column;gap:12px"></div>
+    <div class="modal-ft"><button class="btn btn-full" onclick="closeModal('visita-detail')">Fechar</button></div>
+  </div>
+</div>
+
+<!-- MODAL DETALHE OPORTUNIDADE -->
+<div class="mov" id="mov-opp-detail" onclick="e=>{if(e.target===e.currentTarget)closeModal('opp-detail')}">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-hd"><span class="modal-title">Detalhe da oportunidade</span><button class="modal-close" onclick="closeModal('opp-detail')">×</button></div>
+    <div class="modal-body" id="opp-detail-body" style="display:flex;flex-direction:column;gap:12px"></div>
+    <div class="modal-ft"><button class="btn btn-full" onclick="closeModal('opp-detail')">Fechar</button></div>
+  </div>
+</div>
+
 </body>
 </html>
