@@ -1,43 +1,16 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flexbor CRM</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:system-ui,-apple-system,sans-serif;background:#0f0f0f;color:#f0f0f0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
-.wrap{width:100%;max-width:400px;}
-.logo{font-size:28px;font-weight:800;text-align:center;margin-bottom:4px;letter-spacing:-.5px;}
-.logo em{color:#e8ff5a;font-style:normal;}
-.sub{text-align:center;font-size:13px;color:#555;margin-bottom:40px;}
-.cards{display:flex;flex-direction:column;gap:12px;}
-.card{background:#171717;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:22px;display:flex;align-items:center;gap:16px;text-decoration:none;color:inherit;transition:border-color .2s;}
-.card:hover{border-color:rgba(255,255,255,.18);}
-.card-ico{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
-.ico-com{background:rgba(77,166,255,.12);}
-.ico-ges{background:rgba(167,139,250,.12);}
-.card-title{font-size:15px;font-weight:800;margin-bottom:3px;}
-.card-sub{font-size:12px;color:#666;}
-.card-arrow{margin-left:auto;font-size:18px;color:#444;flex-shrink:0;}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flexbor CRM</title>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body>
-<div class="wrap">
-  <div class="logo">Flexbor <em>●</em></div>
-  <div class="sub">CRM Comercial — seleciona o teu perfil</div>
-  <div class="cards">
-    <a class="card" href="comercial.html">
-      <div class="card-ico ico-com">📍</div>
-      <div><div class="card-title">Comercial</div><div class="card-sub">Registar visitas, oportunidades e tarefas</div></div>
-      <div class="card-arrow">→</div>
-    </a>
-    <a class="card" href="gestor.html">
-      <div class="card-ico ico-ges">⊞</div>
-      <div><div class="card-title">Gestor</div><div class="card-sub">Dashboard, pipeline e relatórios da equipa</div></div>
-      <div class="card-arrow">→</div>
-    </a>
-  </div>
-</div>
+<body style="display:flex; align-items:center; justify-content:center; height:100vh;">
+    <div class="card" style="width:320px; text-align:center;">
+        <h1 style="color:var(--primary); margin-bottom:20px;">Flexbor CRM</h1>
+        <button class="btn" onclick="location.href='comercial.html'">Painel Comercial</button>
+        <button class="btn btn-sec" onclick="location.href='gestor.html'">Painel Gestor</button>
+    </div>
 </body>
 </html>
