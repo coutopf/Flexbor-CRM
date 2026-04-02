@@ -375,7 +375,7 @@ tr:hover td{background:rgba(255,255,255,.015);}
             <select class="fsel" id="fcc" onchange="renderClientes()"><option value="">Todos os comerciais</option></select>
           </div>
           <table>
-            <thead><tr><th>Cliente</th><th>Setor</th><th>Contacto</th><th>Tel.</th><th>Localidade</th><th>Comercial</th><th>Visitas</th><th>Oport.</th><th></th></tr></thead>
+            <thead><tr><th>Cliente</th><th>Setor</th><th>Tel.</th><th>Localidade</th><th>Comercial</th><th>Visitas</th><th>Oport.</th><th></th></tr></thead>
             <tbody id="tb-clientes"></tbody>
           </table>
         </div>
@@ -802,21 +802,20 @@ function renderClientes(){
   const setor=document.getElementById('fcs')?.value||'';
   const comId=document.getElementById('fcc')?.value||'';
   const list=raw.clientes.filter(c=>{
-    const ms=!q||c.nome.toLowerCase().includes(q)||(c.contacto||'').toLowerCase().includes(q);
+    const ms=!q||c.nome.toLowerCase().includes(q)||(c.morada||'').toLowerCase().includes(q)||(c.tel||'').toLowerCase().includes(q);
     const mst=!setor||c.setor===setor;
     const mc=!comId||c.criado_por===comId;
     return ms&&mst&&mc;
   });
   const tb=document.getElementById('tb-clientes');
   if(!tb)return;
-  if(!list.length){tb.innerHTML='<tr><td colspan="9"><div class="empty" style="padding:24px">Sem clientes ainda. Usa o botão <strong>+ Novo cliente</strong> para criar o primeiro.</div></td></tr>';return;}
+  if(!list.length){tb.innerHTML='<tr><td colspan="8"><div class="empty" style="padding:24px">Sem clientes ainda. Usa o botão <strong>+ Novo cliente</strong> para criar o primeiro.</div></td></tr>';return;}
   tb.innerHTML=list.map(c=>{
     const nv=raw.visitas.filter(v=>v.cliente_id===c.id).length;
     const no=raw.opps.filter(o=>o.cliente_id===c.id&&o.estado==='aberta').length;
     return`<tr>
       <td><strong>${c.nome}</strong></td>
       <td>${c.setor||'—'}</td>
-      <td>${c.contacto||'—'}</td>
       <td>${c.tel||'—'}</td>
       <td>${c.morada||'—'}</td>
       <td>${profName(c.criado_por)}</td>
@@ -842,7 +841,7 @@ function fillClienteComercialFilter(){
 function openAddClienteModal(){
   const coms=raw.profiles.filter(p=>p.role==='comercial');
   document.getElementById('cl-comercial').innerHTML=`<option value="">— nenhum —</option>`+coms.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
-  ['cl-nome','cl-tel','cl-contacto','cl-email','cl-morada','cl-notas'].forEach(id=>document.getElementById(id).value='');
+  ['cl-nome','cl-tel','cl-morada','cl-notas'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('modal-cl-err').innerHTML='';
   // Reset to create mode
   document.getElementById('modal-cl-title').textContent='Novo cliente';
@@ -860,8 +859,6 @@ async function saveCliente(){
     nome,
     setor:document.getElementById('cl-setor').value,
     tel:document.getElementById('cl-tel').value,
-    contacto:document.getElementById('cl-contacto').value,
-    email:document.getElementById('cl-email').value,
     morada:document.getElementById('cl-morada').value,
     notas:document.getElementById('cl-notas').value,
     criado_por:comId||myId
@@ -880,8 +877,6 @@ function editCliente(id){
   document.getElementById('cl-nome').value=c.nome||'';
   document.getElementById('cl-setor').value=c.setor||'';
   document.getElementById('cl-tel').value=c.tel||'';
-  document.getElementById('cl-contacto').value=c.contacto||'';
-  document.getElementById('cl-email').value=c.email||'';
   document.getElementById('cl-morada').value=c.morada||'';
   document.getElementById('cl-notas').value=c.notas||'';
   // Set comercial
@@ -904,8 +899,6 @@ async function updateCliente(id){
     nome,
     setor:document.getElementById('cl-setor').value,
     tel:document.getElementById('cl-tel').value,
-    contacto:document.getElementById('cl-contacto').value,
-    email:document.getElementById('cl-email').value,
     morada:document.getElementById('cl-morada').value,
     notas:document.getElementById('cl-notas').value,
     criado_por:comId||myId
@@ -1100,10 +1093,6 @@ function clearSession(){
       <div class="fg2">
         <div class="fg"><label>Setor</label><select id="cl-setor"><option>Alimentar</option><option>Farmacêutica</option><option>Revenda</option><option>Automóvel</option><option>Plásticos</option><option>Integrador</option><option>Papel</option><option>Energia</option><option>Metalúrgica</option><option>Têxteis</option><option>Outro</option></select></div>
         <div class="fg"><label>Telefone</label><input type="tel" id="cl-tel"></div>
-      </div>
-      <div class="fg2">
-        <div class="fg"><label>Pessoa de contacto</label><input type="text" id="cl-contacto" autocomplete="off"></div>
-        <div class="fg"><label>Email</label><input type="email" id="cl-email" autocomplete="off"></div>
       </div>
       <div class="fg2">
         <div class="fg"><label>Localidade</label><input type="text" id="cl-morada" autocomplete="off"></div>

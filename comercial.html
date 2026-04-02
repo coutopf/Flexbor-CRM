@@ -440,8 +440,6 @@ textarea{resize:none;min-height:72px;font-size:13px;}
         <div class="fg"><label>Setor</label><select id="c-setor"><option>Alimentar</option><option>Farmacêutica</option><option>Revenda</option><option>Automóvel</option><option>Plásticos</option><option>Integrador</option><option>Papel</option><option>Energia</option><option>Metalúrgica</option><option>Têxteis</option><option>Outro</option></select></div>
         <div class="fg"><label>Telefone</label><input type="tel" id="c-tel" inputmode="tel"></div>
       </div>
-      <div class="fg"><label>Pessoa de contacto</label><input type="text" id="c-contacto" autocomplete="off"></div>
-      <div class="fg"><label>Email</label><input type="email" id="c-email" inputmode="email" autocomplete="off"></div>
       <div class="fg"><label>Localidade</label><input type="text" id="c-morada" autocomplete="off"></div>
       <div class="fg"><label>Notas</label><textarea id="c-notas"></textarea></div>
     </div>
@@ -806,7 +804,7 @@ function openModal(type){
   if(type==='cliente'){
     document.getElementById('modal-cli-title').textContent='Novo cliente';
     document.getElementById('c-save-btn').onclick=saveCliente;
-    ['c-nome','c-contacto','c-tel','c-email','c-morada','c-notas'].forEach(id=>document.getElementById(id).value='');
+    ['c-nome','c-tel','c-morada','c-notas'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('c-err').style.display='none';
     document.getElementById('c-nome').style.borderColor='';
   }
@@ -866,8 +864,7 @@ async function saveCliente(){
   const btn=document.getElementById('c-save-btn');btn.innerHTML='<span class="spin-b spin"></span>';btn.disabled=true;
   const{data:novo,error}=await sb.from('clientes').insert({
     nome,setor:document.getElementById('c-setor').value,
-    contacto:document.getElementById('c-contacto').value,tel:document.getElementById('c-tel').value,
-    email:document.getElementById('c-email').value,morada:document.getElementById('c-morada').value,
+    tel:document.getElementById('c-tel').value,morada:document.getElementById('c-morada').value,
     notas:document.getElementById('c-notas').value,criado_por:myId
   }).select().single();
   btn.innerHTML='Guardar';btn.disabled=false;
@@ -882,8 +879,6 @@ function editCliente(cid){
   document.getElementById('c-nome').value=c.nome||'';
   document.getElementById('c-setor').value=c.setor||'Alimentar';
   document.getElementById('c-tel').value=c.tel||'';
-  document.getElementById('c-contacto').value=c.contacto||'';
-  document.getElementById('c-email').value=c.email||'';
   document.getElementById('c-morada').value=c.morada||'';
   document.getElementById('c-notas').value=c.notas||'';
   document.getElementById('c-err').style.display='none';
@@ -898,8 +893,8 @@ async function updateCliente(id){
   document.getElementById('c-err').style.display='none';
   const btn=document.getElementById('c-save-btn');btn.innerHTML='<span class="spin-b spin"></span>';btn.disabled=true;
   const{error}=await sb.from('clientes').update({
-    nome,setor:document.getElementById('c-setor').value,contacto:document.getElementById('c-contacto').value,
-    tel:document.getElementById('c-tel').value,email:document.getElementById('c-email').value,
+    nome,setor:document.getElementById('c-setor').value,
+    tel:document.getElementById('c-tel').value,
     morada:document.getElementById('c-morada').value,notas:document.getElementById('c-notas').value
   }).eq('id',id);
   btn.innerHTML='Guardar';btn.disabled=false;

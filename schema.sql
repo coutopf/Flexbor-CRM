@@ -14,9 +14,7 @@ create table if not exists public.clientes (
   id uuid primary key default gen_random_uuid(),
   nome text not null,
   setor text,
-  contacto text,
   tel text,
-  email text,
   morada text,
   notas text,
   criado_por uuid references public.profiles(id) on delete set null,
@@ -78,6 +76,10 @@ create table if not exists public.tarefas (
 
 alter table public.profiles
   alter column role set default 'comercial';
+
+alter table public.clientes
+  drop column if exists contacto,
+  drop column if exists email;
 
 alter table public.visitas
   add column if not exists contacto_id uuid references public.contactos(id) on delete set null;
