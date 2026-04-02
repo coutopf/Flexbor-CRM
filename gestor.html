@@ -1077,25 +1077,29 @@ async function deleteContacto(id){
 
 
 
-// clearSession → common.js
+// ── EVENT DELEGATION ─────────────────────────────────────
+// Single delegated listener handles all static buttons — resilient to script errors
 
-// ── EVENT DELEGATION ──────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  initTheme('light');
-  document.getElementById('ap').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+  // Auth inputs
+  document.getElementById('ap').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
   document.getElementById('login-btn').addEventListener('click', doLogin);
 
-  // Navigation
+  // Navigation (data-nav)
   document.querySelectorAll('[data-nav]').forEach(el => {
-    el.addEventListener('click', function(){ nav(this.dataset.nav, this); });
+    el.addEventListener('click', function() {
+      nav(this.dataset.nav, this);
+    });
   });
 
-  // Action map
+  // Generic action buttons (data-action)
   const actions = {
-    doLogout, toggleTheme,
-    openAddModal, openAddClienteModal,
-    closeContactosModal, cancelEditContactoGes,
-    createComercial, saveCliente, saveContactoGes
+    toggleTheme, doLogout, handleNewBtn,
+    closeCf, wNext, wBack,
+    criarClienteRapido, cancelEditContacto,
+    saveVisita, saveCliente, saveOpp, saveTarefa, loadContactosVisita, saveContacto
   };
   document.addEventListener('click', e => {
     const btn = e.target.closest('[data-action]');
@@ -1104,21 +1108,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const cm = e.target.closest('[data-close-modal]');
     if (cm) closeModal(cm.dataset.closeModal);
 
-    const rk = e.target.closest('[data-rank]');
-    if (rk) setRank(rk.dataset.rank, rk);
+    const om = e.target.closest('[data-open-modal]');
+    if (om) openModal(om.dataset.openModal);
+
+    const st = e.target.closest('[data-sort-table]');
+    if (st) sortTable(st.dataset.sortTable, st.dataset.sortCol);
+
+    const tab = e.target.closest('[data-tab]');
+    if (tab) setTab(tab.dataset.tab, tab);
 
     if (e.target.closest('.btn-clear')) clearSession();
   });
 
-  // Filter selects (onchange via delegation)
+  // Change events via delegation
   document.addEventListener('change', e => {
-    const ft = e.target.closest('[data-filter]');
-    if (!ft) return;
-    const map = { apply:applyFilter, pipeline:renderPipeline, visitas:renderVisitas, opps:renderOpps, clientes:renderClientes };
-    if (map[ft.dataset.filter]) map[ft.dataset.filter]();
+    const act = e.target.closest('[data-action]');
+    if (act && actions[act.dataset.action]) actions[act.dataset.action].call(act);
   });
 });
 </script>
+
 <!-- MODAL NOVO CLIENTE -->
 <div class="modal-ov" id="modal-cliente" onclick="e=>{if(e.target===e.currentTarget)closeClienteModal()}">
   <div class="modal">
