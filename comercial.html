@@ -1127,7 +1127,7 @@ function showOppDetail(id){
   }
   if(o.notas) html+=dfld('Notas',o.notas);
   html+='<div style="margin-top:4px"><label style="margin-bottom:6px;display:block">Atualizar fase</label>'
-    +'<select class="btn btn-full" style="text-align:left" onchange="updateFase(''+o.id+'',this.value);closeModal('opp-detail')">'
+    +'<select class="btn btn-full" style="text-align:left" onchange="updateFase(\''+o.id+'\',this.value);closeModal(\'opp-detail\')">'
     +['Prospeção','Qualificação','Proposta','Negociação','Fechado — Ganho','Fechado — Perdido'].map(f=>'<option'+(f===o.fase?' selected':'')+'>'+f+'</option>').join('')
     +'</select></div>';
   body.innerHTML=html;
