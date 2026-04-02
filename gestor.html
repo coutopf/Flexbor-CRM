@@ -424,7 +424,7 @@ const sbProvision=supabase.createClient(SB_URL,SB_KEY,{
 });
 
 let me=null, myId=null;
-let raw={profiles:[],clientes:[],visitas:[],opps:[],tarefas:[]};
+let raw={profiles:[],clientes:[],contactos:[],visitas:[],opps:[],tarefas:[]};
 let filt={visitas:[],opps:[]};
 let charts={};
 let rankTab='visitas';
@@ -486,21 +486,22 @@ sb.auth.onAuthStateChange(async(ev,session)=>{
 
 // REALTIME — re-carrega quando há alterações
 function setupRealtime(){
-  ['visitas','oportunidades','tarefas','clientes','profiles'].forEach(t=>{
+  ['visitas','oportunidades','tarefas','clientes','profiles','contactos'].forEach(t=>{
     sb.channel('rt-'+t).on('postgres_changes',{event:'*',schema:'public',table:t},()=>loadAll()).subscribe();
   });
 }
 
 // LOAD — gestor vê TUDO (sem filtro de criado_por)
 async function loadAll(){
-  const[pr,cl,vi,op,ta]=await Promise.all([
+  const[pr,cl,ct,vi,op,ta]=await Promise.all([
     sb.from('profiles').select('*'),
     sb.from('clientes').select('*').order('nome',{ascending:true}),
+    sb.from('contactos').select('*').order('nome'),
     sb.from('visitas').select('*').order('data',{ascending:false}),
     sb.from('oportunidades').select('*').order('created_at',{ascending:false}),
     sb.from('tarefas').select('*').order('data_limite')
   ]);
-  raw.profiles=pr.data||[];raw.clientes=cl.data||[];raw.visitas=vi.data||[];raw.opps=op.data||[];raw.tarefas=ta.data||[];
+  raw.profiles=pr.data||[];raw.clientes=cl.data||[];raw.contactos=ct.data||[];raw.visitas=vi.data||[];raw.opps=op.data||[];raw.tarefas=ta.data||[];
   fillProfileFilters();
   applyFilter();
   const lu=document.getElementById('last-update');
@@ -540,6 +541,7 @@ function fmtK(v){if(v>=1000000)return(v/1000000).toFixed(1)+'M€';if(v>=1000)re
 function profName(uid){const p=raw.profiles.find(p=>p.id===uid);return p?.nome||'—';}
 function profIni(n){return(n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
 function tipoCls(t){return{Presencial:'bbg',Videochamada:'bbl',Telefone:'bbo'}[t]||'bbgr';}
+function contactoNome(id){if(!id)return'—';const c=raw.contactos.find(x=>x.id===id);return c?.nome||'—';}
 function dc(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 function daysLeft(d){if(!d)return null;const today=new Date();today.setHours(0,0,0,0);return Math.ceil((new Date(d)-today)/86400000);}
 function rndColor(i){return['#a78bfa','#4da6ff','#4dca7a','#ff8c42','#2dd4bf','#e8ff5a'][i%6];}
@@ -703,13 +705,13 @@ function renderVisitas(){
   const q=(document.getElementById('sv')?.value||'').toLowerCase();
   const tipo=document.getElementById('fvt')?.value||'';
   const list=filt.visitas.filter(v=>{
-    const ms=!q||v.cliente_nome.toLowerCase().includes(q)||(v.objetivo||'').toLowerCase().includes(q)||profName(v.criado_por).toLowerCase().includes(q);
+    const ms=!q||v.cliente_nome.toLowerCase().includes(q)||(v.objetivo||'').toLowerCase().includes(q)||profName(v.criado_por).toLowerCase().includes(q)||contactoNome(v.contacto_id).toLowerCase().includes(q);
     return ms&&(!tipo||v.tipo===tipo);
   });
   document.getElementById('tb-vis').innerHTML=list.length===0?'<tr><td colspan="7"><div class="empty" style="padding:24px">Sem visitas para mostrar com os filtros atuais.</div></td></tr>':
     list.map(v=>`<tr style="cursor:pointer" onclick="showVisitaDetail('${v.id}')">
         <td>${fmtDate(v.data)}</td>
-        <td><strong>${v.cliente_nome}</strong></td>
+        <td><strong>${v.cliente_nome}</strong><div style="font-size:11px;color:var(--t3)">${contactoNome(v.contacto_id)}</div></td>
         <td><span class="badge ${tipoCls(v.tipo)}">${v.tipo}</span></td>
         <td>${profName(v.criado_por)}</td>
         <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.objetivo||'—'}</td>
@@ -939,6 +941,7 @@ function showVisitaDetail(id){
       ${detailField('Data',fmtDate(v.data))}
       ${detailField('Tipo','<span class="badge '+tipoCls(v.tipo)+'">'+v.tipo+'</span>')}
       ${detailField('Cliente','<strong>'+v.cliente_nome+'</strong>')}
+      ${detailField('Contacto',contactoNome(v.contacto_id))}
       ${detailField('Comercial',profName(v.criado_por))}
     </div>
     ${v.objetivo?detailBlock('Objetivo',v.objetivo):''}

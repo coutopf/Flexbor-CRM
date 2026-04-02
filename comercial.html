@@ -350,6 +350,7 @@ textarea{resize:none;min-height:72px;font-size:13px;}
   <th class="sortable" onclick="sortTable('visitas','data')">Data<span class="sort-ico"></span></th>
   <th class="sortable" onclick="sortTable('visitas','cliente_nome')">Cliente<span class="sort-ico"></span></th>
   <th class="sortable" onclick="sortTable('visitas','tipo')">Tipo<span class="sort-ico"></span></th>
+  <th>Contacto</th>
   <th>Objetivo</th>
   <th></th>
 </tr></thead>
@@ -540,7 +541,7 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{storageKey:'flexbor-com-v2'}});
 
 let me=null, myId=null;
-let D={clientes:[],visitas:[],opps:[],tarefas:[]};
+let D={clientes:[],contactos:[],visitas:[],opps:[],tarefas:[]};
 let tabT='pend', editingCtId=null, currentCtCliId=null, pendingCliCb=null;
 const newBtnLabels={home:'+ Registar visita',clientes:'+ Novo cliente',visitas:'+ Nova visita',opps:'+ Nova oportunidade',tarefas:'+ Nova tarefa'};
 
@@ -620,13 +621,14 @@ sb.auth.onAuthStateChange(async(ev,session)=>{
 
 // ── LOAD ──
 async function loadAll(){
-  const[c,v,o,t]=await Promise.all([
+  const[c,ct,v,o,t]=await Promise.all([
     sb.from('clientes').select('*').eq('criado_por',myId).order('nome'),
+    sb.from('contactos').select('*').order('nome'),
     sb.from('visitas').select('*').eq('criado_por',myId).order('data',{ascending:false}),
     sb.from('oportunidades').select('*').eq('criado_por',myId).order('created_at',{ascending:false}),
     sb.from('tarefas').select('*').eq('criado_por',myId).order('data_limite')
   ]);
-  D.clientes=c.data||[];D.visitas=v.data||[];D.opps=o.data||[];D.tarefas=t.data||[];
+  D.clientes=c.data||[];D.contactos=ct.data||[];D.visitas=v.data||[];D.opps=o.data||[];D.tarefas=t.data||[];
   renderAll();
 }
 function renderAll(){renderStats();renderHome();renderClientes();renderVisitas();renderOpps();renderTarefas();fillSelects();}
@@ -704,11 +706,12 @@ function renderClientes(){
 function renderVisitas(){
   const tb=document.getElementById('tb-visitas');
   const list=sortList([...D.visitas],'visitas');
-  if(!list.length){tb.innerHTML=`<tr><td colspan="5"><div class="empty"><div class="empty-ico">📍</div><p>Sem visitas. Clica em <strong>+ Nova visita</strong>.</p></div></td></tr>`;return;}
+  if(!list.length){tb.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-ico">📍</div><p>Sem visitas. Clica em <strong>+ Nova visita</strong>.</p></div></td></tr>`;return;}
   tb.innerHTML=list.map(v=>`<tr style="cursor:pointer" onclick="showVisitaDetail('${v.id}')">
     <td>${fmtDate(v.data)}</td>
     <td><strong>${v.cliente_nome}</strong></td>
     <td><span class="badge ${tipoCls(v.tipo)}">${v.tipo}</span></td>
+    <td style="color:var(--t2)">${getContactoNome(v.contacto_id)}</td>
     <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t2)">${v.objetivo||'—'}</td>
     <td><span style="font-size:11px;color:var(--bl);font-weight:600">Ver →</span></td>
   </tr>`).join('');
@@ -1044,6 +1047,7 @@ async function deleteCt(id){await sb.from('contactos').delete().eq('id',id);toas
 function fmtDate(d){if(!d)return'—';const p=d.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d;}
 function fmtEur(v){return(v||0).toLocaleString('pt-PT',{minimumFractionDigits:0,maximumFractionDigits:0})+' €';}
 function tipoCls(t){return{Presencial:'bbg',Videochamada:'bbl',Telefone:'bbo'}[t]||'bbgr';}
+function getContactoNome(contactoId){if(!contactoId)return'â€”';const c=D.contactos.find(x=>x.id===contactoId);return c?.nome||'â€”';}
 function esc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 
 // ── SORT ──
@@ -1093,6 +1097,7 @@ function showVisitaDetail(id){
     +dfld('Data',fmtDate(v.data))
     +dfld('Tipo','<span class="badge '+tipoCls(v.tipo)+'">'+v.tipo+'</span>')
     +dfld('Cliente','<strong>'+v.cliente_nome+'</strong>')
+    +dfld('Contacto',getContactoNome(v.contacto_id))
     +'</div>';
   if(v.objetivo) html+=dfld('Objetivo',v.objetivo);
   if(v.notas) html+=dfld('O que aconteceu',v.notas);
