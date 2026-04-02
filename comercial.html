@@ -8,7 +8,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flexbor CRM — Comercial</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="common.js"></script>
 <style>
 :root{
   --bg:#f0f2f5;--s:#ffffff;--s2:#e8eaed;--s3:#dde0e5;--s4:#d0d3d8;
@@ -247,12 +246,12 @@ textarea{resize:none;min-height:72px;font-size:13px;}
     <div class="auth-logo">Flexbor <em>●</em></div>
     <div class="auth-badge"><span>Comercial</span></div>
     <div style="text-align:center;margin-bottom:14px">
-      <button id="btn-clear-session" class="btn-clear" style="background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer;text-decoration:underline">Problemas a entrar? Limpar sessão</button>
+      <button onclick="clearSession()" style="background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer;text-decoration:underline">Problemas a entrar? Limpar sessão</button>
     </div>
     <div id="auth-err" style="margin-bottom:12px"></div>
     <div class="fg"><label>Email</label><input type="email" id="ae" placeholder="o.teu@flexbor.pt" autocomplete="email"></div>
     <div class="fg"><label>Password</label><input type="password" id="ap" placeholder="••••••••" autocomplete="current-password"></div>
-    <button class="btn btn-p btn-full" style="padding:11px;font-size:14px" id="login-btn">Entrar</button>
+    <button class="btn btn-p btn-full" style="padding:11px;font-size:14px" id="login-btn" onclick="doLogin()">Entrar</button>
   </div>
 </div>
 
@@ -263,11 +262,11 @@ textarea{resize:none;min-height:72px;font-size:13px;}
     <nav class="sb-nav">
       <div class="sb-sec">
         <div class="sb-lbl">Principal</div>
-        <button class="sb-item on" data-nav="home"><span class="sb-ico">⊞</span>Início</button>
-        <button class="sb-item" data-nav="clientes"><span class="sb-ico">◉</span>Clientes</button>
-        <button class="sb-item" data-nav="visitas"><span class="sb-ico">📍</span>Visitas</button>
-        <button class="sb-item" data-nav="opps"><span class="sb-ico">◇</span>Oportunidades</button>
-        <button class="sb-item" data-nav="tarefas">
+        <button class="sb-item on" onclick="nav('home',this)"><span class="sb-ico">⊞</span>Início</button>
+        <button class="sb-item" onclick="nav('clientes',this)"><span class="sb-ico">◉</span>Clientes</button>
+        <button class="sb-item" onclick="nav('visitas',this)"><span class="sb-ico">📍</span>Visitas</button>
+        <button class="sb-item" onclick="nav('opps',this)"><span class="sb-ico">◇</span>Oportunidades</button>
+        <button class="sb-item" onclick="nav('tarefas',this)">
           <span class="sb-ico">✓</span>Tarefas
           <span class="sb-ibadge" id="badge-t">0</span>
         </button>
@@ -279,31 +278,31 @@ textarea{resize:none;min-height:72px;font-size:13px;}
         <div><div class="sb-uname" id="user-name">Comercial</div><div class="sb-urole">Equipa de vendas</div></div>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-sm btn-full" data-action="toggleTheme" id="theme-btn">🌙 Escuro</button>
-        <button class="btn btn-sm btn-full" style="color:var(--t3)" data-action="doLogout">↩ Sair</button>
+        <button class="btn btn-sm btn-full" onclick="toggleTheme()" id="theme-btn">🌙 Escuro</button>
+        <button class="btn btn-sm btn-full" style="color:var(--t3)" onclick="doLogout()">↩ Sair</button>
       </div>
     </div>
   </aside>
 
   <!-- BOTTOM NAV (mobile) -->
   <div class="botnav" id="botnav">
-    <button class="bn on" id="bn-home" data-nav="home"><span class="bn-ico">⊞</span>Início</button>
-    <button class="bn" id="bn-clientes" data-nav="clientes"><span class="bn-ico">◉</span>Clientes</button>
-    <button class="bn" id="bn-visitas" data-nav="visitas"><span class="bn-ico">📍</span>Visitas</button>
-    <button class="bn" id="bn-opps" data-nav="opps"><span class="bn-ico">◇</span>Oport.</button>
-    <button class="bn" id="bn-tarefas" data-nav="tarefas"><span class="bn-ico">✓</span>Tarefas<span class="bn-badge" id="bn-badge-t"></span></button>
+    <button class="bn on" id="bn-home" onclick="nav('home',this)"><span class="bn-ico">⊞</span>Início</button>
+    <button class="bn" id="bn-clientes" onclick="nav('clientes',this)"><span class="bn-ico">◉</span>Clientes</button>
+    <button class="bn" id="bn-visitas" onclick="nav('visitas',this)"><span class="bn-ico">📍</span>Visitas</button>
+    <button class="bn" id="bn-opps" onclick="nav('opps',this)"><span class="bn-ico">◇</span>Oport.</button>
+    <button class="bn" id="bn-tarefas" onclick="nav('tarefas',this)"><span class="bn-ico">✓</span>Tarefas<span class="bn-badge" id="bn-badge-t"></span></button>
   </div>
 
   <div class="main">
     <div class="topbar">
       <div class="page-title" id="page-title">Início</div>
-      <span class="topbar-new-wrap"><button class="btn btn-p btn-sm" id="topbar-new-btn" data-action="handleNewBtn">+ Registar visita</button></span>
+      <span class="topbar-new-wrap"><button class="btn btn-p btn-sm" id="topbar-new-btn" onclick="handleNewBtn()">+ Registar visita</button></span>
     </div>
     <div class="content">
 
       <!-- HOME -->
       <div class="view on" id="view-home">
-        <div class="qcta" data-open-modal="visita">
+        <div class="qcta" onclick="openModal('visita')">
           <div class="qcta-ico">📍</div>
           <div class="qcta-text"><strong>Registar visita</strong><span>Clica para registar uma visita rapidamente</span></div>
         </div>
@@ -314,7 +313,7 @@ textarea{resize:none;min-height:72px;font-size:13px;}
         </div>
         <div id="home-urg"></div>
         <div class="card">
-          <div class="card-hd"><span class="card-title">Últimas visitas</span><button class="card-link" data-nav="visitas">Ver todas →</button></div>
+          <div class="card-hd"><span class="card-title">Últimas visitas</span><button class="card-link" onclick="nav('visitas',document.querySelector('.sb-item:nth-child(3)'))">Ver todas →</button></div>
           <div id="home-vis"><div class="empty"><p>Sem visitas registadas</p></div></div>
         </div>
         <div class="card">
@@ -327,15 +326,15 @@ textarea{resize:none;min-height:72px;font-size:13px;}
       <div class="view" id="view-clientes">
         <div class="card">
           <div class="tbl-search">
-            <input type="search" placeholder="Pesquisar cliente..." id="sc" oninput="debouncedSearch()" style="max-width:280px">
+            <input type="search" placeholder="Pesquisar cliente..." id="sc" oninput="renderClientes()" style="max-width:280px">
           </div>
           <table>
             <thead><tr>
-  <th class="sortable" data-sort-table="clientes" data-sort-col="nome">Cliente<span class="sort-ico"></span></th>
-  <th class="sortable" data-sort-table="clientes" data-sort-col="setor">Setor<span class="sort-ico"></span></th>
-  <th class="sortable" data-sort-table="clientes" data-sort-col="morada">Localidade<span class="sort-ico"></span></th>
-  <th class="sortable" data-sort-table="clientes" data-sort-col="nvisitas">Visitas<span class="sort-ico"></span></th>
-  <th class="sortable" data-sort-table="clientes" data-sort-col="nopps">Oport.<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('clientes','nome')">Cliente<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('clientes','setor')">Setor<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('clientes','morada')">Localidade<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('clientes','nvisitas')">Visitas<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('clientes','nopps')">Oport.<span class="sort-ico"></span></th>
   <th></th>
 </tr></thead>
             <tbody id="tb-clientes"></tbody>
@@ -348,9 +347,9 @@ textarea{resize:none;min-height:72px;font-size:13px;}
         <div class="card">
           <table>
             <thead><tr>
-  <th class="sortable" data-sort-table="visitas" data-sort-col="data">Data<span class="sort-ico"></span></th>
-  <th class="sortable" data-sort-table="visitas" data-sort-col="cliente_nome">Cliente<span class="sort-ico"></span></th>
-  <th class="sortable" data-sort-table="visitas" data-sort-col="tipo">Tipo<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('visitas','data')">Data<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('visitas','cliente_nome')">Cliente<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('visitas','tipo')">Tipo<span class="sort-ico"></span></th>
   <th>Objetivo</th>
   <th></th>
 </tr></thead>
@@ -364,12 +363,12 @@ textarea{resize:none;min-height:72px;font-size:13px;}
         <div class="card">
           <table>
             <thead><tr>
-  <th class="sortable" data-sort-table="opps" data-sort-col="nome">Oportunidade<span class="sort-ico"></span></th>
-  <th class="sortable" data-sort-table="opps" data-sort-col="cliente_nome">Cliente<span class="sort-ico"></span></th>
-  <th class="sortable" data-sort-table="opps" data-sort-col="fase">Fase<span class="sort-ico"></span></th>
-  <th class="sortable" data-sort-table="opps" data-sort-col="valor">Valor<span class="sort-ico"></span></th>
-  <th class="sortable" data-sort-table="opps" data-sort-col="probabilidade">Prob.<span class="sort-ico"></span></th>
-  <th class="sortable" data-sort-table="opps" data-sort-col="data_fecho">Fecho<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('opps','nome')">Oportunidade<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('opps','cliente_nome')">Cliente<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('opps','fase')">Fase<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('opps','valor')">Valor<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('opps','probabilidade')">Prob.<span class="sort-ico"></span></th>
+  <th class="sortable" onclick="sortTable('opps','data_fecho')">Fecho<span class="sort-ico"></span></th>
   <th></th>
 </tr></thead>
             <tbody id="tb-opps"></tbody>
@@ -380,8 +379,8 @@ textarea{resize:none;min-height:72px;font-size:13px;}
       <!-- TAREFAS -->
       <div class="view" id="view-tarefas">
         <div class="tabs">
-          <button class="tab on" data-tab="pend" data-tab="pend">Pendentes</button>
-          <button class="tab" data-tab="done" data-tab="done">Concluídas</button>
+          <button class="tab on" data-tab="pend" onclick="setTab('pend',this)">Pendentes</button>
+          <button class="tab" data-tab="done" onclick="setTab('done',this)">Concluídas</button>
         </div>
         <div class="card"><div id="tb-tarefas"></div></div>
       </div>
@@ -393,7 +392,7 @@ textarea{resize:none;min-height:72px;font-size:13px;}
 <!-- MODAL VISITA -->
 <div class="mov" id="mov-visita" onclick="e=>{if(e.target===e.currentTarget)closeModal('visita')}">
   <div class="modal">
-    <div class="modal-hd"><span class="modal-title">Registar visita</span><button class="modal-close" data-close-modal="visita">×</button></div>
+    <div class="modal-hd"><span class="modal-title">Registar visita</span><button class="modal-close" onclick="closeModal('visita')">×</button></div>
     <div class="modal-body">
       <div class="wsteps"><div class="wstep on" id="ws0">1 · Visita</div><div class="wstep" id="ws1">2 · Seguimento</div></div>
       <div class="wpage on" id="wp0">
@@ -403,8 +402,8 @@ textarea{resize:none;min-height:72px;font-size:13px;}
         </div>
         <div class="fg">
           <label>Cliente *</label>
-          <select id="v-cliente" data-action="loadContactosVisita"><option value="">— selecionar —</option></select>
-          <div class="fhint">Não encontras? <button style="background:none;border:none;color:var(--bl);font-size:11px;cursor:pointer;padding:0;font-weight:600" data-action="criarClienteRapido">Criar agora →</button></div>
+          <select id="v-cliente" onchange="loadContactosVisita()"><option value="">— selecionar —</option></select>
+          <div class="fhint">Não encontras? <button style="background:none;border:none;color:var(--bl);font-size:11px;cursor:pointer;padding:0;font-weight:600" onclick="criarClienteRapido()">Criar agora →</button></div>
         </div>
         <div class="fg" id="v-contacto-wrap" style="display:none">
           <label>Contacto</label>
@@ -424,9 +423,9 @@ textarea{resize:none;min-height:72px;font-size:13px;}
       </div>
     </div>
     <div class="modal-ft">
-      <button class="btn" id="v-back" data-action="wBack" style="display:none">← Voltar</button>
-      <button class="btn btn-p" id="v-next" data-action="wNext">Continuar →</button>
-      <button class="btn btn-p" id="v-save" style="display:none" data-action="saveVisita">Guardar visita ✓</button>
+      <button class="btn" id="v-back" onclick="wBack()" style="display:none">← Voltar</button>
+      <button class="btn btn-p" id="v-next" onclick="wNext()">Continuar →</button>
+      <button class="btn btn-p" id="v-save" style="display:none" onclick="saveVisita()">Guardar visita ✓</button>
     </div>
   </div>
 </div>
@@ -434,7 +433,7 @@ textarea{resize:none;min-height:72px;font-size:13px;}
 <!-- MODAL CLIENTE -->
 <div class="mov" id="mov-cliente" onclick="e=>{if(e.target===e.currentTarget)closeModal('cliente')}">
   <div class="modal">
-    <div class="modal-hd"><span class="modal-title" id="modal-cli-title">Novo cliente</span><button class="modal-close" data-close-modal="cliente">×</button></div>
+    <div class="modal-hd"><span class="modal-title" id="modal-cli-title">Novo cliente</span><button class="modal-close" onclick="closeModal('cliente')">×</button></div>
     <div class="modal-body">
       <div class="fg"><label>Nome da empresa *</label><input type="text" id="c-nome" autocomplete="off" placeholder="Ex: Metalúrgica Silva Lda"><div class="ferr" id="c-err">Obrigatório</div></div>
       <div class="fg2">
@@ -447,8 +446,8 @@ textarea{resize:none;min-height:72px;font-size:13px;}
       <div class="fg"><label>Notas</label><textarea id="c-notas"></textarea></div>
     </div>
     <div class="modal-ft">
-      <button class="btn" data-close-modal="cliente">Cancelar</button>
-      <button class="btn btn-p" id="c-save-btn" data-action="saveCliente">Guardar</button>
+      <button class="btn" onclick="closeModal('cliente')">Cancelar</button>
+      <button class="btn btn-p" id="c-save-btn" onclick="saveCliente()">Guardar</button>
     </div>
   </div>
 </div>
@@ -456,7 +455,7 @@ textarea{resize:none;min-height:72px;font-size:13px;}
 <!-- MODAL OPP -->
 <div class="mov" id="mov-opp" onclick="e=>{if(e.target===e.currentTarget)closeModal('opp')}">
   <div class="modal">
-    <div class="modal-hd"><span class="modal-title">Nova oportunidade</span><button class="modal-close" data-close-modal="opp">×</button></div>
+    <div class="modal-hd"><span class="modal-title">Nova oportunidade</span><button class="modal-close" onclick="closeModal('opp')">×</button></div>
     <div class="modal-body">
       <div class="fg"><label>Nome *</label><input type="text" id="o-nome" autocomplete="off" placeholder="Ex: Fornecimento equipamentos 2025"></div>
       <div class="fg"><label>Cliente *</label><select id="o-cliente"><option value="">— selecionar —</option></select></div>
@@ -471,8 +470,8 @@ textarea{resize:none;min-height:72px;font-size:13px;}
       <div class="fg"><label>Notas</label><textarea id="o-notas"></textarea></div>
     </div>
     <div class="modal-ft">
-      <button class="btn" data-close-modal="opp">Cancelar</button>
-      <button class="btn btn-p" id="o-save-btn" data-action="saveOpp">Guardar</button>
+      <button class="btn" onclick="closeModal('opp')">Cancelar</button>
+      <button class="btn btn-p" id="o-save-btn" onclick="saveOpp()">Guardar</button>
     </div>
   </div>
 </div>
@@ -480,7 +479,7 @@ textarea{resize:none;min-height:72px;font-size:13px;}
 <!-- MODAL TAREFA -->
 <div class="mov" id="mov-tarefa" onclick="e=>{if(e.target===e.currentTarget)closeModal('tarefa')}">
   <div class="modal">
-    <div class="modal-hd"><span class="modal-title">Nova tarefa</span><button class="modal-close" data-close-modal="tarefa">×</button></div>
+    <div class="modal-hd"><span class="modal-title">Nova tarefa</span><button class="modal-close" onclick="closeModal('tarefa')">×</button></div>
     <div class="modal-body">
       <div class="fg"><label>O que fazer? *</label><input type="text" id="t-desc" autocomplete="off"></div>
       <div class="fg"><label>Cliente</label><select id="t-cliente"><option value="">Nenhum</option></select></div>
@@ -491,8 +490,8 @@ textarea{resize:none;min-height:72px;font-size:13px;}
       <div class="fg"><label>Notas</label><textarea id="t-notas"></textarea></div>
     </div>
     <div class="modal-ft">
-      <button class="btn" data-close-modal="tarefa">Cancelar</button>
-      <button class="btn btn-p" id="t-save-btn" data-action="saveTarefa">Guardar</button>
+      <button class="btn" onclick="closeModal('tarefa')">Cancelar</button>
+      <button class="btn btn-p" id="t-save-btn" onclick="saveTarefa()">Guardar</button>
     </div>
   </div>
 </div>
@@ -500,7 +499,7 @@ textarea{resize:none;min-height:72px;font-size:13px;}
 <!-- MODAL CONTACTOS -->
 <div class="mov" id="mov-contactos" onclick="e=>{if(e.target===e.currentTarget)closeModal('contactos')}">
   <div class="modal" style="max-width:540px">
-    <div class="modal-hd"><span class="modal-title" id="modal-ct-title">Contactos</span><button class="modal-close" data-close-modal="contactos">×</button></div>
+    <div class="modal-hd"><span class="modal-title" id="modal-ct-title">Contactos</span><button class="modal-close" onclick="closeModal('contactos')">×</button></div>
     <div class="modal-body">
       <div id="ct-list" style="margin-bottom:16px"></div>
       <div style="background:var(--s2);border-radius:var(--r);padding:14px">
@@ -516,12 +515,12 @@ textarea{resize:none;min-height:72px;font-size:13px;}
         <div class="fg"><label>Notas</label><input type="text" id="ct-notas" autocomplete="off" placeholder="Ex: decisor de compras"></div>
         <div id="ct-err" style="margin-bottom:10px"></div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-full" id="ct-cancel-btn" style="display:none" data-action="cancelEditContacto">Cancelar</button>
-          <button class="btn btn-p btn-full" id="ct-save-btn" data-action="saveContacto">+ Adicionar</button>
+          <button class="btn btn-full" id="ct-cancel-btn" style="display:none" onclick="cancelEditContacto()">Cancelar</button>
+          <button class="btn btn-p btn-full" id="ct-save-btn" onclick="saveContacto()">+ Adicionar</button>
         </div>
       </div>
     </div>
-    <div class="modal-ft"><button class="btn btn-full" data-close-modal="contactos">Fechar</button></div>
+    <div class="modal-ft"><button class="btn btn-full" onclick="closeModal('contactos')">Fechar</button></div>
   </div>
 </div>
 
@@ -532,7 +531,7 @@ textarea{resize:none;min-height:72px;font-size:13px;}
     <div class="cfsub">Esta ação não pode ser desfeita.</div>
     <div class="cfbtns">
       <button class="btn btn-full btn-del" style="padding:12px;font-size:14px" id="cf-ok">Eliminar</button>
-      <button class="btn btn-full" style="padding:12px;font-size:14px" data-action="closeCf">Cancelar</button>
+      <button class="btn btn-full" style="padding:12px;font-size:14px" onclick="closeCf()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -547,10 +546,24 @@ let D={clientes:[],visitas:[],opps:[],tarefas:[]};
 let tabT='pend', editingCtId=null, currentCtCliId=null, pendingCliCb=null;
 const newBtnLabels={home:'+ Registar visita',clientes:'+ Novo cliente',visitas:'+ Nova visita',opps:'+ Nova oportunidade',tarefas:'+ Nova tarefa'};
 
-// ── THEME → common.js ──
-document.addEventListener('DOMContentLoaded',()=>initTheme('light'));
+// ── THEME ──
+(function(){
+  const t=localStorage.getItem('flexbor-theme')||'light';
+  if(t==='dark'){document.documentElement.classList.add('dark');const b=document.getElementById('theme-btn');if(b)b.innerHTML='☀ Claro';}
+})();
+function toggleTheme(){
+  const isDark=document.documentElement.classList.toggle('dark');
+  document.getElementById('theme-btn').innerHTML=isDark?'☀ Claro':'🌙 Escuro';
+  localStorage.setItem('flexbor-theme',isDark?'dark':'light');
+}
 
-// ── TOAST → common.js ──
+// ── TOAST ──
+function toast(msg,type='ok',dur=2800){
+  const c=document.getElementById('toasts'),t=document.createElement('div');
+  t.className=`toast t${type}`;t.textContent=msg;c.appendChild(t);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.add('on')));
+  setTimeout(()=>{t.classList.remove('on');setTimeout(()=>t.remove(),300);},dur);
+}
 
 // ── AUTH ──
 async function doLogin(){
@@ -572,7 +585,16 @@ async function doLogout(){
   document.getElementById('login-btn').disabled=false;
   document.getElementById('ap').value='';
 }
-// clearSession → common.js
+function clearSession(){
+  Object.keys(localStorage).forEach(k=>{if(k.startsWith('sb-')||k.startsWith('supabase')||k.startsWith('flexbor-'))localStorage.removeItem(k);});
+  Object.keys(sessionStorage).forEach(k=>{if(k.startsWith('sb-')||k.startsWith('supabase'))sessionStorage.removeItem(k);});
+  window.location.reload();
+}
+function showAuthError(message){
+  document.getElementById('auth-err').innerHTML=`<div style="background:rgba(179,0,0,.08);border:1px solid rgba(179,0,0,.2);color:var(--re);padding:10px 13px;border-radius:var(--r);font-size:13px">${message}</div>`;
+  document.getElementById('login-btn').innerHTML='Entrar';
+  document.getElementById('login-btn').disabled=false;
+}
 
 sb.auth.onAuthStateChange(async(ev,session)=>{
   if(ev==='SIGNED_OUT'){
@@ -582,7 +604,13 @@ sb.auth.onAuthStateChange(async(ev,session)=>{
   }
   if(session&&!me){
     me=session.user;myId=me.id;
-    const{data:p}=await sb.from('profiles').select('nome').eq('id',myId).single();
+    const{data:p,error}=await sb.from('profiles').select('nome,role').eq('id',myId).single();
+    if(error||!p||p.role!=='comercial'){
+      await sb.auth.signOut();
+      me=null;myId=null;
+      showAuthError('Acesso restrito a comerciais.');
+      return;
+    }
     const nome=p?.nome||me.email.split('@')[0];
     document.getElementById('user-av').textContent=nome[0].toUpperCase();
     document.getElementById('user-name').textContent=nome;
@@ -594,12 +622,6 @@ sb.auth.onAuthStateChange(async(ev,session)=>{
 
 // ── LOAD ──
 async function loadAll(){
-  // Show skeletons while loading
-  const skTbls={tb_clientes:4, tb_visitas:4, tb_opps:4};
-  Object.entries(skTbls).forEach(([id,cols])=>{
-    const el=document.getElementById(id.replace('_','-'));
-    if(el) el.innerHTML=skeletonRows(5,cols);
-  });
   const[c,v,o,t]=await Promise.all([
     sb.from('clientes').select('*').eq('criado_por',myId).order('nome'),
     sb.from('visitas').select('*').eq('criado_por',myId).order('data',{ascending:false}),
@@ -609,23 +631,12 @@ async function loadAll(){
   D.clientes=c.data||[];D.visitas=v.data||[];D.opps=o.data||[];D.tarefas=t.data||[];
   renderAll();
 }
-const debouncedSearch=debounce(()=>renderClientes(),250);
-function renderAll(){
-  renderStats();
-  fillSelects();
-  const active=document.querySelector('.view.on')?.id?.replace('view-','');
-  renderHome();  // always (stats + urgencies shown on start)
-  if(active==='clientes')  renderClientes();
-  if(active==='visitas')   renderVisitas();
-  if(active==='opps')      renderOpps();
-  if(active==='tarefas')   renderTarefas();
-}
+function renderAll(){renderStats();renderHome();renderClientes();renderVisitas();renderOpps();renderTarefas();fillSelects();}
 
 // ── STATS ──
 function renderStats(){
   const mes=new Date().getMonth(),ano=new Date().getFullYear();
-  const mesStr=`${ano}-${String(mes+1).padStart(2,'0')}`;
-  const vm=D.visitas.filter(v=>v.data&&v.data.startsWith(mesStr)).length;
+  const vm=D.visitas.filter(v=>{const d=new Date(v.data);return d.getMonth()===mes&&d.getFullYear()===ano;}).length;
   const om=D.opps.filter(o=>o.estado==='aberta').length;
   const today=new Date();today.setHours(0,0,0,0);
   const urg=D.tarefas.filter(t=>t.estado==='pendente'&&new Date(t.data_limite)<=today).length;
@@ -669,7 +680,7 @@ function renderClientes(){
   // apply sort
   list=sortList(list,'clientes');
   const tb=document.getElementById('tb-clientes');
-  if(!list.length){tb.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-ico">◉</div><p>Sem clientes ainda.</p><div class="empty-act"><button class="btn btn-p btn-sm" data-open-modal="cliente">+ Criar cliente</button></div></div></td></tr>`;return;}
+  if(!list.length){tb.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-ico">◉</div><p>Sem clientes ainda.</p><div class="empty-act"><button class="btn btn-p btn-sm" onclick="openModal('cliente')">+ Criar cliente</button></div></div></td></tr>`;return;}
   tb.innerHTML=list.map(c=>{
     const nv=D.visitas.filter(v=>v.cliente_id===c.id).length,no=D.opps.filter(o=>o.cliente_id===c.id&&o.estado==='aberta').length;
     return`<tr>
@@ -709,7 +720,7 @@ function renderVisitas(){
 function renderOpps(){
   const tb=document.getElementById('tb-opps');
   const list=sortList([...D.opps],'opps');
-  if(!list.length){tb.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-ico">◇</div><p>Sem oportunidades.</p><div class="empty-act"><button class="btn btn-p btn-sm" data-open-modal="opp">+ Nova oportunidade</button></div></div></td></tr>`;return;}
+  if(!list.length){tb.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-ico">◇</div><p>Sem oportunidades.</p><div class="empty-act"><button class="btn btn-p btn-sm" onclick="openModal('opp')">+ Nova oportunidade</button></div></div></td></tr>`;return;}
   const fm={Prospeção:'bbgr',Qualificação:'bbl',Proposta:'bbo',Negociação:'bbp','Fechado — Ganho':'bbg','Fechado — Perdido':'bbr'};
   const today=new Date();today.setHours(0,0,0,0);
   tb.innerHTML=list.map(o=>{
@@ -739,9 +750,9 @@ function renderOpps(){
 function setTab(tab,el){tabT=tab;document.querySelectorAll('[data-tab]').forEach(b=>b.classList.remove('on'));el.classList.add('on');renderTarefas();}
 function renderTarefas(){
   const today=new Date();today.setHours(0,0,0,0);
-  const list=tabT==='pend'?D.tarefas.filter(t=>t.estado==='pendente'):D.tarefas.filter(t=>t.estado==='concluida');
+  const list=D.tarefas.filter(t=>tabT==='pend'?t.estado==='pendente':t.estado==='concluida');
   const el=document.getElementById('tb-tarefas');
-  if(!list.length){el.innerHTML=`<div class="empty"><div class="empty-ico">${tabT==='pend'?'✓':'📋'}</div><p>${tabT==='pend'?'Sem tarefas pendentes! 🎉':'Sem tarefas concluídas.'}</p>${tabT==='pend'?`<div class="empty-act"><button class="btn btn-p btn-sm" data-open-modal="tarefa">+ Nova tarefa</button></div>`:''}</div>`;return;}
+  if(!list.length){el.innerHTML=`<div class="empty"><div class="empty-ico">${tabT==='pend'?'✓':'📋'}</div><p>${tabT==='pend'?'Sem tarefas pendentes! 🎉':'Sem tarefas concluídas.'}</p>${tabT==='pend'?`<div class="empty-act"><button class="btn btn-p btn-sm" onclick="openModal('tarefa')">+ Nova tarefa</button></div>`:''}</div>`;return;}
   el.innerHTML=list.map(t=>{
     const urg=t.estado==='pendente'&&new Date(t.data_limite)<=today;
     const days=Math.ceil((new Date(t.data_limite)-today)/86400000);
@@ -774,13 +785,11 @@ function nav(view,btn){
   document.querySelectorAll('.bn').forEach(b=>b.classList.remove('on'));
   document.getElementById('view-'+view).classList.add('on');
   if(btn) btn.classList.add('on');
-  const bnEl=document.getElementById('bn-'+view);if(bnEl)bnEl.classList.add('on');
+  const bnId='bn-'+view;const bnEl=document.getElementById(bnId);if(bnEl)bnEl.classList.add('on');
   const titles={home:'Início',clientes:'Clientes',visitas:'Visitas',opps:'Oportunidades',tarefas:'Tarefas'};
   document.getElementById('page-title').textContent=titles[view]||view;
-  document.getElementById('topbar-new-btn').textContent=newBtnLabels[view]||'+ Novo';
-  // Render on demand
-  const renderMap={clientes:renderClientes,visitas:renderVisitas,opps:renderOpps,tarefas:renderTarefas};
-  if(renderMap[view]) renderMap[view]();
+  const newBtn=document.getElementById('topbar-new-btn');
+  newBtn.textContent=newBtnLabels[view]||'+ Novo';
 }
 function handleNewBtn(){
   const view=document.querySelector('.view.on')?.id.replace('view-','')||'home';
@@ -807,7 +816,7 @@ function openModalWithCli(type,cid){
   openModal(type);
   setTimeout(()=>{const el=document.getElementById(type==='visita'?'v-cliente':'o-cliente');if(el){el.value=cid;if(type==='visita')loadContactosVisita();}},50);
 }
-// closeModal → common.js
+function closeModal(type){document.getElementById('mov-'+type).classList.remove('on');}
 
 // ── WIZARD ──
 function resetWizard(){
@@ -1036,7 +1045,11 @@ async function saveContacto(){
 }
 async function deleteCt(id){await sb.from('contactos').delete().eq('id',id);toast('Eliminado','inf');loadContactos(currentCtCliId);}
 
-// ── HELPERS (fmtDate, fmtEur, tipoCls, esc → common.js) ──
+// ── HELPERS ──
+function fmtDate(d){if(!d)return'—';const p=d.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d;}
+function fmtEur(v){return(v||0).toLocaleString('pt-PT',{minimumFractionDigits:0,maximumFractionDigits:0})+' €';}
+function tipoCls(t){return{Presencial:'bbg',Videochamada:'bbl',Telefone:'bbo'}[t]||'bbgr';}
+function esc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 
 // ── SORT ──
 const sortState={clientes:{col:'nome',dir:'asc'},visitas:{col:'data',dir:'desc'},opps:{col:'created_at',dir:'desc'}};
@@ -1072,7 +1085,11 @@ function sortList(list,table){
 }
 
 // ── DETAIL VIEWS ──
-// dfld → common.js
+function dfld(label,value){
+  return'<div style="background:var(--s2);border-radius:var(--r);padding:10px 13px">'
+    +'<div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;font-weight:700">'+label+'</div>'
+    +'<div style="font-size:13px;line-height:1.5">'+value+'</div></div>';
+}
 
 function showVisitaDetail(id){
   const v=D.visitas.find(x=>x.id===id);if(!v)return;
@@ -1118,71 +1135,23 @@ function showOppDetail(id){
 }
 
 
-// ── EVENT DELEGATION ─────────────────────────────────────
-// Single delegated listener handles all static buttons — resilient to script errors
-
-document.addEventListener('DOMContentLoaded', () => {
-  // Auth inputs
-  document.getElementById('ap').addEventListener('keydown', e => {
-    if (e.key === 'Enter') doLogin();
-  });
-  document.getElementById('login-btn').addEventListener('click', doLogin);
-
-  // Navigation (data-nav)
-  document.querySelectorAll('[data-nav]').forEach(el => {
-    el.addEventListener('click', function() {
-      nav(this.dataset.nav, this);
-    });
-  });
-
-  // Generic action buttons (data-action)
-  const actions = {
-    toggleTheme, doLogout, handleNewBtn,
-    closeCf, wNext, wBack,
-    criarClienteRapido, cancelEditContacto,
-    saveVisita, saveCliente, saveOpp, saveTarefa, loadContactosVisita, saveContacto
-  };
-  document.addEventListener('click', e => {
-    const btn = e.target.closest('[data-action]');
-    if (btn && actions[btn.dataset.action]) actions[btn.dataset.action].call(btn);
-
-    const cm = e.target.closest('[data-close-modal]');
-    if (cm) closeModal(cm.dataset.closeModal);
-
-    const om = e.target.closest('[data-open-modal]');
-    if (om) openModal(om.dataset.openModal);
-
-    const st = e.target.closest('[data-sort-table]');
-    if (st) sortTable(st.dataset.sortTable, st.dataset.sortCol);
-
-    const tab = e.target.closest('[data-tab]');
-    if (tab) setTab(tab.dataset.tab, tab);
-
-    if (e.target.closest('.btn-clear')) clearSession();
-  });
-
-  // Change events via delegation
-  document.addEventListener('change', e => {
-    const act = e.target.closest('[data-action]');
-    if (act && actions[act.dataset.action]) actions[act.dataset.action].call(act);
-  });
-});
+document.getElementById('ap').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 </script>
 <!-- MODAL DETALHE VISITA -->
 <div class="mov" id="mov-visita-detail" onclick="e=>{if(e.target===e.currentTarget)closeModal('visita-detail')}">
   <div class="modal" style="max-width:500px">
-    <div class="modal-hd"><span class="modal-title">Detalhe da visita</span><button class="modal-close" data-close-modal="visita-detail">×</button></div>
+    <div class="modal-hd"><span class="modal-title">Detalhe da visita</span><button class="modal-close" onclick="closeModal('visita-detail')">×</button></div>
     <div class="modal-body" id="visita-detail-body" style="display:flex;flex-direction:column;gap:12px"></div>
-    <div class="modal-ft"><button class="btn btn-full" data-close-modal="visita-detail">Fechar</button></div>
+    <div class="modal-ft"><button class="btn btn-full" onclick="closeModal('visita-detail')">Fechar</button></div>
   </div>
 </div>
 
 <!-- MODAL DETALHE OPORTUNIDADE -->
 <div class="mov" id="mov-opp-detail" onclick="e=>{if(e.target===e.currentTarget)closeModal('opp-detail')}">
   <div class="modal" style="max-width:500px">
-    <div class="modal-hd"><span class="modal-title">Detalhe da oportunidade</span><button class="modal-close" data-close-modal="opp-detail">×</button></div>
+    <div class="modal-hd"><span class="modal-title">Detalhe da oportunidade</span><button class="modal-close" onclick="closeModal('opp-detail')">×</button></div>
     <div class="modal-body" id="opp-detail-body" style="display:flex;flex-direction:column;gap:12px"></div>
-    <div class="modal-ft"><button class="btn btn-full" data-close-modal="opp-detail">Fechar</button></div>
+    <div class="modal-ft"><button class="btn btn-full" onclick="closeModal('opp-detail')">Fechar</button></div>
   </div>
 </div>
 

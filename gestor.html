@@ -8,21 +8,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flexbor CRM — Gestor</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="common.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 :root{
-  --bg:#f0f2f5;--s:#ffffff;--s2:#e8eaed;--s3:#dde0e5;--s4:#d0d3d8;
-  --b:rgba(0,0,0,.1);--b2:rgba(0,0,0,.18);--b3:rgba(0,0,0,.28);
-  --t:#000000;--t2:#333333;--t3:#666666;
-  --ac:#7a6000;--bl:#0052a3;--gr:#0a6e36;--or:#a34d00;--re:#b30000;--pu:#5b21b6;--te:#0f766e;
-  --r:8px;--rl:14px;--rxl:20px;
-}
-:root.dark{
   --bg:#0c0c0d;--s:#131315;--s2:#1a1a1d;--s3:#222226;--s4:#2a2a2f;
   --b:rgba(255,255,255,.06);--b2:rgba(255,255,255,.11);--b3:rgba(255,255,255,.18);
   --t:#efefef;--t2:#999;--t3:#4a4a55;
   --ac:#e8ff5a;--bl:#4da6ff;--gr:#4dca7a;--or:#ff8c42;--re:#ff5757;--pu:#a78bfa;--te:#2dd4bf;
+  --r:8px;--rl:14px;--rxl:20px;
+}
+:root.light{
+  --bg:#f0f2f5;--s:#ffffff;--s2:#e8eaed;--s3:#dde0e5;--s4:#d0d3d8;
+  --b:rgba(0,0,0,.1);--b2:rgba(0,0,0,.18);--b3:rgba(0,0,0,.28);
+  --t:#000000;--t2:#333333;--t3:#666666;
+  --ac:#7a6000;--bl:#0052a3;--gr:#0a6e36;--or:#a34d00;--re:#b30000;--pu:#5b21b6;--te:#0f766e;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--t);min-height:100vh;font-size:14px;}
@@ -202,12 +201,12 @@ tr:hover td{background:rgba(255,255,255,.015);}
     <div class="auth-logo">Flexbor <em>●</em></div>
     <div class="auth-badge"><span>Gestor</span></div>
     <div style="text-align:center;margin-bottom:12px">
-      <button class="btn-clear" style="background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer;text-decoration:underline">Problemas a entrar? Limpar sessão</button>
+      <button onclick="clearSession()" style="background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer;text-decoration:underline">Problemas a entrar? Limpar sessão</button>
     </div>
     <div id="auth-err" style="margin-bottom:12px"></div>
     <div class="fg"><label>Email</label><input type="email" id="ae" placeholder="gestor@flexbor.pt" autocomplete="email"></div>
     <div class="fg"><label>Password</label><input type="password" id="ap" placeholder="••••••••" autocomplete="current-password"></div>
-    <button class="btn btn-p" style="width:100%;justify-content:center;padding:11px;font-size:14px" id="login-btn">Entrar</button>
+    <button class="btn btn-p" style="width:100%;justify-content:center;padding:11px;font-size:14px" id="login-btn" onclick="doLogin()">Entrar</button>
   </div>
 </div>
 
@@ -218,22 +217,22 @@ tr:hover td{background:rgba(255,255,255,.015);}
     <nav class="sb-nav">
       <div class="sb-sec">
         <div class="sb-lbl">Visão geral</div>
-        <button class="sb-item on" data-nav="dashboard"><span class="sb-ico">⊞</span>Dashboard</button>
-        <button class="sb-item" data-nav="alertas"><span class="sb-ico">⚠</span>Alertas<span class="sb-ibadge" id="sb-alertas">0</span></button>
-        <button class="sb-item" data-nav="pipeline"><span class="sb-ico">◇</span>Pipeline</button>
+        <button class="sb-item on" onclick="nav('dashboard',this)"><span class="sb-ico">⊞</span>Dashboard</button>
+        <button class="sb-item" onclick="nav('alertas',this)"><span class="sb-ico">⚠</span>Alertas<span class="sb-ibadge" id="sb-alertas">0</span></button>
+        <button class="sb-item" onclick="nav('pipeline',this)"><span class="sb-ico">◇</span>Pipeline</button>
       </div>
       <div class="sb-sec">
         <div class="sb-lbl">Análise</div>
-        <button class="sb-item" data-nav="relatorios"><span class="sb-ico">◈</span>Relatórios</button>
-        <button class="sb-item" data-nav="ranking"><span class="sb-ico">★</span>Ranking</button>
+        <button class="sb-item" onclick="nav('relatorios',this)"><span class="sb-ico">◈</span>Relatórios</button>
+        <button class="sb-item" onclick="nav('ranking',this)"><span class="sb-ico">★</span>Ranking</button>
       </div>
       <hr class="sb-div">
       <div class="sb-sec">
         <div class="sb-lbl">Dados</div>
-        <button class="sb-item" data-nav="visitas"><span class="sb-ico">📍</span>Visitas</button>
-        <button class="sb-item" data-nav="opps"><span class="sb-ico">◇</span>Oportunidades</button>
-        <button class="sb-item" data-nav="equipa"><span class="sb-ico">◉</span>Equipa</button>
-        <button class="sb-item" data-nav="clientes"><span class="sb-ico">◉</span>Clientes</button>
+        <button class="sb-item" onclick="nav('visitas',this)"><span class="sb-ico">📍</span>Visitas</button>
+        <button class="sb-item" onclick="nav('opps',this)"><span class="sb-ico">◇</span>Oportunidades</button>
+        <button class="sb-item" onclick="nav('equipa',this)"><span class="sb-ico">◉</span>Equipa</button>
+        <button class="sb-item" onclick="nav('clientes',this)"><span class="sb-ico">◉</span>Clientes</button>
       </div>
     </nav>
     <div class="sb-bot">
@@ -243,8 +242,8 @@ tr:hover td{background:rgba(255,255,255,.015);}
       </div>
       <div class="rt-row"><div class="rt-dot"></div><span>Dados em tempo real</span></div>
       <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn btn-sm" style="flex:1;justify-content:center" data-action="toggleTheme" id="theme-btn">🌙 Escuro</button>
-        <button class="btn btn-sm" style="flex:1;justify-content:center;color:var(--t3)" data-action="doLogout">↩ Sair</button>
+        <button class="btn btn-sm" style="flex:1;justify-content:center" onclick="toggleTheme()" id="theme-btn">☀ Tema</button>
+        <button class="btn btn-sm" style="flex:1;justify-content:center;color:var(--t3)" onclick="doLogout()">↩ Sair</button>
       </div>
     </div>
   </aside>
@@ -253,8 +252,8 @@ tr:hover td{background:rgba(255,255,255,.015);}
     <div class="topbar">
       <div class="page-title" id="page-title">Dashboard</div>
       <div style="display:flex;gap:8px;align-items:center">
-        <select class="fsel" id="f-com" data-filter="apply"><option value="">Toda a equipa</option></select>
-        <select class="fsel" id="f-per" data-filter="apply">
+        <select class="fsel" id="f-com" onchange="applyFilter()"><option value="">Toda a equipa</option></select>
+        <select class="fsel" id="f-per" onchange="applyFilter()">
           <option value="all">Todo o período</option>
           <option value="month">Este mês</option>
           <option value="quarter">Este trimestre</option>
@@ -291,7 +290,7 @@ tr:hover td{background:rgba(255,255,255,.015);}
       <div class="view" id="view-pipeline">
         <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px">
           <span id="pipe-total" style="font-size:13px;color:var(--t2)">—</span>
-          <select class="fsel" id="f-pipe-com" data-filter="pipeline"><option value="">Toda a equipa</option></select>
+          <select class="fsel" id="f-pipe-com" onchange="renderPipeline()"><option value="">Toda a equipa</option></select>
         </div>
         <div class="pipe-cols" id="pipeline-board"></div>
       </div>
@@ -317,10 +316,10 @@ tr:hover td{background:rgba(255,255,255,.015);}
       <!-- RANKING -->
       <div class="view" id="view-ranking">
         <div class="tabs">
-          <button class="tab on" data-rank="visitas" data-rank="visitas">Por visitas</button>
-          <button class="tab" data-rank="pipeline" data-rank="pipeline">Por pipeline</button>
-          <button class="tab" data-rank="receita" data-rank="receita">Por receita</button>
-          <button class="tab" data-rank="taxa" data-rank="taxa">Por conversão</button>
+          <button class="tab on" data-rank="visitas" onclick="setRank('visitas',this)">Por visitas</button>
+          <button class="tab" data-rank="pipeline" onclick="setRank('pipeline',this)">Por pipeline</button>
+          <button class="tab" data-rank="receita" onclick="setRank('receita',this)">Por receita</button>
+          <button class="tab" data-rank="taxa" onclick="setRank('taxa',this)">Por conversão</button>
         </div>
         <div class="card"><div id="rank-list"></div></div>
       </div>
@@ -329,8 +328,8 @@ tr:hover td{background:rgba(255,255,255,.015);}
       <div class="view" id="view-visitas">
         <div class="card">
           <div class="tbl-search">
-            <input type="search" placeholder="Pesquisar cliente, comercial..." id="sv" oninput="debouncedVis()">
-            <select class="fsel" id="fvt" data-filter="visitas"><option value="">Todos os tipos</option><option>Presencial</option><option>Videochamada</option><option>Telefone</option></select>
+            <input type="search" placeholder="Pesquisar cliente, comercial..." id="sv" oninput="renderVisitas()">
+            <select class="fsel" id="fvt" onchange="renderVisitas()"><option value="">Todos os tipos</option><option>Presencial</option><option>Videochamada</option><option>Telefone</option></select>
           </div>
           <table><thead><tr><th>Data</th><th>Cliente</th><th>Tipo</th><th>Comercial</th><th>Objetivo</th><th>Próximo passo</th><th></th></tr></thead>
           <tbody id="tb-vis"></tbody></table>
@@ -341,8 +340,8 @@ tr:hover td{background:rgba(255,255,255,.015);}
       <div class="view" id="view-opps">
         <div class="card">
           <div class="tbl-search">
-            <input type="search" placeholder="Pesquisar..." id="so" oninput="debouncedOpps()">
-            <select class="fsel" id="fof" data-filter="opps"><option value="">Todas as fases</option><option>Prospeção</option><option>Qualificação</option><option>Proposta</option><option>Negociação</option><option>Fechado — Ganho</option><option>Fechado — Perdido</option></select>
+            <input type="search" placeholder="Pesquisar..." id="so" oninput="renderOpps()">
+            <select class="fsel" id="fof" onchange="renderOpps()"><option value="">Todas as fases</option><option>Prospeção</option><option>Qualificação</option><option>Proposta</option><option>Negociação</option><option>Fechado — Ganho</option><option>Fechado — Perdido</option></select>
           </div>
           <table><thead><tr><th>Oportunidade</th><th>Fase</th><th>Valor</th><th>Prob.</th><th>Fecho</th><th>Comercial</th><th></th></tr></thead>
           <tbody id="tb-opps"></tbody></table>
@@ -352,7 +351,7 @@ tr:hover td{background:rgba(255,255,255,.015);}
       <!-- EQUIPA -->
       <div class="view" id="view-equipa">
         <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
-          <button class="btn btn-p" data-action="openAddModal">+ Adicionar membro</button>
+          <button class="btn btn-p" onclick="openAddModal()">+ Adicionar membro</button>
         </div>
         <div class="equipa-grid" id="equipa-grid"></div>
       </div>
@@ -361,19 +360,19 @@ tr:hover td{background:rgba(255,255,255,.015);}
       <div class="view" id="view-clientes">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
           <span style="font-size:16px;font-weight:800">Clientes</span>
-          <button class="btn btn-p" data-action="openAddClienteModal">+ Novo cliente</button>
+          <button class="btn btn-p" onclick="openAddClienteModal()">+ Novo cliente</button>
         </div>
         <div class="card">
           <div class="tbl-search">
-            <input type="search" placeholder="Pesquisar cliente..." id="sc" oninput="debouncedClis()">
-            <select class="fsel" id="fcs" data-filter="clientes">
+            <input type="search" placeholder="Pesquisar cliente..." id="sc" oninput="renderClientes()">
+            <select class="fsel" id="fcs" onchange="renderClientes()">
               <option value="">Todos os setores</option>
               <option>Alimentar</option><option>Farmacêutica</option><option>Revenda</option>
               <option>Automóvel</option><option>Plásticos</option><option>Integrador</option>
               <option>Papel</option><option>Energia</option><option>Metalúrgica</option><option>Têxteis</option>
               <option>Outro</option>
             </select>
-            <select class="fsel" id="fcc" data-filter="clientes"><option value="">Todos os comerciais</option></select>
+            <select class="fsel" id="fcc" onchange="renderClientes()"><option value="">Todos os comerciais</option></select>
           </div>
           <table>
             <thead><tr><th>Cliente</th><th>Setor</th><th>Contacto</th><th>Tel.</th><th>Localidade</th><th>Comercial</th><th>Visitas</th><th>Oport.</th><th></th></tr></thead>
@@ -387,9 +386,9 @@ tr:hover td{background:rgba(255,255,255,.015);}
 </div>
 
 <!-- MODAL ADICIONAR COMERCIAL -->
-<div class="modal-ov" id="modal-add" data-action="closeModal">
+<div class="modal-ov" id="modal-add" onclick="e=>{if(e.target===e.currentTarget)closeModal()}">
   <div class="modal">
-    <div class="modal-hd"><span class="modal-title">Adicionar membro</span><button class="modal-close" data-action="closeModal">×</button></div>
+    <div class="modal-hd"><span class="modal-title">Adicionar membro</span><button class="modal-close" onclick="closeModal()">×</button></div>
     <div class="modal-body">
       <div class="fg2">
         <div class="fg"><label>Nome *</label><input type="text" id="nc-nome" autocomplete="off"></div>
@@ -405,8 +404,8 @@ tr:hover td{background:rgba(255,255,255,.015);}
       <div id="modal-err" style="margin-top:12px"></div>
     </div>
     <div class="modal-ft">
-      <button class="btn" data-action="closeModal">Cancelar</button>
-      <button class="btn btn-p" id="add-btn" data-action="createComercial">Criar conta</button>
+      <button class="btn" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-p" id="add-btn" onclick="createComercial()">Criar conta</button>
     </div>
   </div>
 </div>
@@ -415,6 +414,14 @@ tr:hover td{background:rgba(255,255,255,.015);}
 const SB_URL='https://oowaowtlwpnypryrlzle.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vd2Fvd3Rsd3BueXByeXJsemxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MTg3MjgsImV4cCI6MjA4OTQ5NDcyOH0.ktXfapdiPevW_12uKSKogWbjUQDZLXmSWh9WSV8T3Po';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{storageKey:'flexbor-ges-v1'}});
+const sbProvision=supabase.createClient(SB_URL,SB_KEY,{
+  auth:{
+    storageKey:'flexbor-ges-provision',
+    persistSession:false,
+    autoRefreshToken:false,
+    detectSessionInUrl:false
+  }
+});
 
 let me=null, myId=null;
 let raw={profiles:[],clientes:[],visitas:[],opps:[],tarefas:[]};
@@ -423,7 +430,12 @@ let charts={};
 let rankTab='visitas';
 
 // TOAST
-// toast → common.js
+function toast(msg,type='ok',dur=2800){
+  const c=document.getElementById('toasts'),t=document.createElement('div');
+  t.className=`toast t${type}`;t.textContent=msg;c.appendChild(t);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.add('on')));
+  setTimeout(()=>{t.classList.remove('on');setTimeout(()=>t.remove(),300);},dur);
+}
 
 // AUTH
 async function doLogin(){
@@ -481,7 +493,6 @@ function setupRealtime(){
 
 // LOAD — gestor vê TUDO (sem filtro de criado_por)
 async function loadAll(){
-  ['tb-vis','tb-opps','tb-clientes'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=skeletonRows(4,6);});
   const[pr,cl,vi,op,ta]=await Promise.all([
     sb.from('profiles').select('*'),
     sb.from('clientes').select('*').order('nome',{ascending:true}),
@@ -520,27 +531,15 @@ function applyFilter(){
   renderAll();
 }
 
-function renderAll(){
-  fillClienteComercialFilter();
-  const active=document.querySelector('.view.on')?.id?.replace('view-','')||'dashboard';
-  // Always update dashboard stats and alerts badge
-  renderDash();
-  renderAlertas();
-  // Render active view if it's a data-heavy one
-  const renderMap={
-    pipeline:renderPipeline, relatorios:renderRelatorios, ranking:renderRanking,
-    visitas:renderVisitas, opps:renderOpps, equipa:renderEquipa, clientes:renderClientes
-  };
-  if(renderMap[active]) renderMap[active]();
-}
+function renderAll(){renderDash();renderAlertas();renderPipeline();renderRelatorios();renderRanking();renderVisitas();renderOpps();renderEquipa();renderClientes();fillClienteComercialFilter();}
 
 // HELPERS
-// fmtDate → common.js
-// fmtEur → common.js
+function fmtDate(d){if(!d)return'—';const p=d.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d;}
+function fmtEur(v){return(v||0).toLocaleString('pt-PT',{minimumFractionDigits:0,maximumFractionDigits:0})+' €';}
 function fmtK(v){if(v>=1000000)return(v/1000000).toFixed(1)+'M€';if(v>=1000)return Math.round(v/1000)+'K€';return Math.round(v)+'€';}
 function profName(uid){const p=raw.profiles.find(p=>p.id===uid);return p?.nome||'—';}
 function profIni(n){return(n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
-// tipoCls → common.js
+function tipoCls(t){return{Presencial:'bbg',Videochamada:'bbl',Telefone:'bbo'}[t]||'bbgr';}
 function dc(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 function daysLeft(d){if(!d)return null;const today=new Date();today.setHours(0,0,0,0);return Math.ceil((new Date(d)-today)/86400000);}
 function rndColor(i){return['#a78bfa','#4da6ff','#4dca7a','#ff8c42','#2dd4bf','#e8ff5a'][i%6];}
@@ -769,17 +768,15 @@ function nav(view,btn){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('on'));
   document.getElementById('view-'+view).classList.add('on');
-  if(btn) btn.classList.add('on');
+  btn.classList.add('on');
   const titles={dashboard:'Dashboard',alertas:'Alertas',pipeline:'Pipeline',relatorios:'Relatórios',ranking:'Ranking',visitas:'Todas as visitas',opps:'Oportunidades',equipa:'Equipa',clientes:'Clientes'};
   document.getElementById('page-title').textContent=titles[view]||view;
-  // On-demand render for heavy views
-  const renderMap={pipeline:renderPipeline,relatorios:renderRelatorios,ranking:renderRanking,visitas:renderVisitas,opps:renderOpps,equipa:renderEquipa,clientes:renderClientes};
-  if(renderMap[view]) renderMap[view]();
+  if(['pipeline','ranking','visitas','opps','clientes'].includes(view))renderAll();
 }
 
 // ADICIONAR COMERCIAL
 function openAddModal(){document.getElementById('modal-add').classList.add('on');}
-function closeAddModal(){document.getElementById('modal-add').classList.remove('on');document.getElementById('modal-err').innerHTML='';}
+function closeModal(){document.getElementById('modal-add').classList.remove('on');document.getElementById('modal-err').innerHTML='';}
 async function createComercial(){
   const nome=document.getElementById('nc-nome').value.trim();
   const email=document.getElementById('nc-email').value.trim();
@@ -788,16 +785,16 @@ async function createComercial(){
   const errEl=document.getElementById('modal-err');
   if(!nome||!email||!pass){errEl.innerHTML='<div style="background:rgba(255,87,87,.1);border:1px solid rgba(255,87,87,.3);color:var(--re);padding:9px 13px;border-radius:var(--r);font-size:12px">Preenche todos os campos</div>';return;}
   const btn=document.getElementById('add-btn');btn.innerHTML='<span class="spin"></span>';btn.disabled=true;
-  const{error}=await sb.auth.signUp({email,password:pass,options:{data:{nome,role}}});
+  const{error}=await sbProvision.auth.signUp({email,password:pass,options:{data:{nome,role}}});
+  await sbProvision.auth.signOut();
   btn.innerHTML='Criar conta';btn.disabled=false;
   if(error){errEl.innerHTML=`<div style="background:rgba(255,87,87,.1);border:1px solid rgba(255,87,87,.3);color:var(--re);padding:9px 13px;border-radius:var(--r);font-size:12px">${error.message}</div>`;return;}
-  toast(`"${nome}" adicionado!`,'ok');closeAddModal();
+  toast(`"${nome}" adicionado!`,'ok');closeModal();
   ['nc-nome','nc-email','nc-pass'].forEach(id=>document.getElementById(id).value='');
   setTimeout(loadAll,1500);
 }
 
 document.getElementById('ap').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-document.getElementById('login-btn').addEventListener('click',doLogin);;
 
 // ── CLIENTES ──
 function renderClientes(){
@@ -921,14 +918,20 @@ async function updateCliente(id){
 }
 
 function toggleTheme(){
-  const isDark=document.documentElement.classList.toggle('dark');
+  const isLight=document.documentElement.classList.toggle('light');
   const btn=document.getElementById('theme-btn');
-  if(btn) btn.innerHTML=isDark?'☀ Tema':'🌙 Tema';
-  localStorage.setItem('flexbor-theme',isDark?'dark':'light');
+  if(btn) btn.innerHTML=isLight?'🌙 Tema':'☀ Tema';
+  localStorage.setItem('flexbor-theme',isLight?'light':'dark');
   setTimeout(renderAll,50);
 }
 (function(){
-  // initTheme called via DOMContentLoaded();
+  const t=localStorage.getItem('flexbor-theme');
+  if(t==='light'){
+    document.documentElement.classList.add('light');
+    const btn=document.getElementById('theme-btn');
+    if(btn) btn.innerHTML='🌙 Tema';
+  }
+})();
 
 
 // ── DETAIL PANELS ──
@@ -1077,57 +1080,17 @@ async function deleteContacto(id){
 
 
 
-// ── EVENT DELEGATION ─────────────────────────────────────
-// Single delegated listener handles all static buttons — resilient to script errors
-
-document.addEventListener('DOMContentLoaded', () => {
-  // Auth inputs
-  document.getElementById('ap').addEventListener('keydown', e => {
-    if (e.key === 'Enter') doLogin();
+function clearSession(){
+  // Clear all Supabase auth storage
+  Object.keys(localStorage).forEach(k=>{
+    if(k.startsWith('sb-')||k.startsWith('supabase')||k.startsWith('flexbor-')) localStorage.removeItem(k);
   });
-  document.getElementById('login-btn').addEventListener('click', doLogin);
-
-  // Navigation (data-nav)
-  document.querySelectorAll('[data-nav]').forEach(el => {
-    el.addEventListener('click', function() {
-      nav(this.dataset.nav, this);
-    });
+  Object.keys(sessionStorage).forEach(k=>{
+    if(k.startsWith('sb-')||k.startsWith('supabase')) sessionStorage.removeItem(k);
   });
-
-  // Generic action buttons (data-action)
-  const actions = {
-    toggleTheme, doLogout, handleNewBtn,
-    closeCf, wNext, wBack,
-    criarClienteRapido, cancelEditContacto,
-    saveVisita, saveCliente, saveOpp, saveTarefa, loadContactosVisita, saveContacto
-  };
-  document.addEventListener('click', e => {
-    const btn = e.target.closest('[data-action]');
-    if (btn && actions[btn.dataset.action]) actions[btn.dataset.action].call(btn);
-
-    const cm = e.target.closest('[data-close-modal]');
-    if (cm) closeModal(cm.dataset.closeModal);
-
-    const om = e.target.closest('[data-open-modal]');
-    if (om) openModal(om.dataset.openModal);
-
-    const st = e.target.closest('[data-sort-table]');
-    if (st) sortTable(st.dataset.sortTable, st.dataset.sortCol);
-
-    const tab = e.target.closest('[data-tab]');
-    if (tab) setTab(tab.dataset.tab, tab);
-
-    if (e.target.closest('.btn-clear')) clearSession();
-  });
-
-  // Change events via delegation
-  document.addEventListener('change', e => {
-    const act = e.target.closest('[data-action]');
-    if (act && actions[act.dataset.action]) actions[act.dataset.action].call(act);
-  });
-});
+  window.location.reload();
+}
 </script>
-
 <!-- MODAL NOVO CLIENTE -->
 <div class="modal-ov" id="modal-cliente" onclick="e=>{if(e.target===e.currentTarget)closeClienteModal()}">
   <div class="modal">
@@ -1151,7 +1114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
     <div class="modal-ft">
       <button class="btn" onclick="closeClienteModal()">Cancelar</button>
-      <button class="btn btn-p" id="cl-save-btn" data-action="saveCliente">Guardar</button>
+      <button class="btn btn-p" id="cl-save-btn" onclick="saveCliente()">Guardar</button>
     </div>
   </div>
 </div>
@@ -1161,7 +1124,7 @@ document.addEventListener('DOMContentLoaded', () => {
   <div class="modal" style="max-width:540px">
     <div class="modal-hd">
       <span class="modal-title" id="modal-ct-title">Contactos</span>
-      <button class="modal-close" data-action="closeContactosModal">×</button>
+      <button class="modal-close" onclick="closeContactosModal()">×</button>
     </div>
     <div class="modal-body">
       <!-- Lista de contactos existentes -->
@@ -1180,13 +1143,13 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="fg"><label>Notas</label><input type="text" id="ct-notas" autocomplete="off" placeholder="Ex: decisor de compras"></div>
         <div id="ct-err" style="margin-bottom:10px"></div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-full" id="ct-cancel-ges" style="display:none" data-action="cancelEditContactoGes">Cancelar</button>
-          <button class="btn btn-p btn-full" id="ct-save-ges" data-action="saveContactoGes">+ Adicionar contacto</button>
+          <button class="btn btn-full" id="ct-cancel-ges" style="display:none" onclick="cancelEditContactoGes()">Cancelar</button>
+          <button class="btn btn-p btn-full" id="ct-save-ges" onclick="saveContactoGes()">+ Adicionar contacto</button>
         </div>
       </div>
     </div>
     <div class="modal-ft">
-      <button class="btn" data-action="closeContactosModal">Fechar</button>
+      <button class="btn" onclick="closeContactosModal()">Fechar</button>
     </div>
   </div>
 </div>
