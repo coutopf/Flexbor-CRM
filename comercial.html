@@ -8,6 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flexbor CRM — Comercial</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="supabase.config.js"></script>
 <style>
 :root{
   --bg:#f0f2f5;--s:#ffffff;--s2:#e8eaed;--s3:#dde0e5;--s4:#d0d3d8;
@@ -536,8 +537,10 @@ textarea{resize:none;min-height:72px;font-size:13px;}
 </div>
 
 <script>
-const SB_URL='https://oowaowtlwpnypryrlzle.supabase.co';
-const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vd2Fvd3Rsd3BueXByeXJsemxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MTg3MjgsImV4cCI6MjA4OTQ5NDcyOH0.ktXfapdiPevW_12uKSKogWbjUQDZLXmSWh9WSV8T3Po';
+const SB_CONFIG=window.FLEXBOR_CONFIG?.supabase;
+if(!SB_CONFIG?.url||!SB_CONFIG?.anonKey) throw new Error('Supabase config missing. Check supabase.config.js');
+const SB_URL=SB_CONFIG.url;
+const SB_KEY=SB_CONFIG.anonKey;
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{storageKey:'flexbor-com-v2'}});
 
 let me=null, myId=null;

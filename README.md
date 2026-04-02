@@ -5,6 +5,7 @@ Static CRM frontend backed by Supabase. The current project has two role-specifi
 - `index.html`: landing page
 - `comercial.html`: sales workflow for visits, opportunities, tasks, and contacts
 - `gestor.html`: manager dashboard, team analytics, client management, and user creation
+- `supabase.config.js`: shared browser-side Supabase config
 - `schema.sql`: Supabase database schema, grants, RLS policies, and realtime publication setup
 
 ## Current architecture
@@ -19,7 +20,7 @@ Static CRM frontend backed by Supabase. The current project has two role-specifi
 2. Open the SQL editor and run `schema.sql`.
 3. Create your first manager user in Supabase Auth.
 4. Make sure that first user has metadata `nome` and `role=gestor`, or update the generated `profiles` row after signup.
-5. Replace the `SB_URL` and `SB_KEY` constants in `comercial.html` and `gestor.html` with your own project values.
+5. Update `supabase.config.js` with your own Supabase project URL and anon key.
 6. Open `index.html` in a browser and test both roles.
 
 ## What the schema now covers
@@ -44,8 +45,7 @@ Static CRM frontend backed by Supabase. The current project has two role-specifi
 
 ## Suggested next build steps
 
-1. Move Supabase config out of the HTML files into a shared config file.
-2. Add product catalog and quote/proposal records.
-3. Add file attachments for visits and opportunities.
-4. Add audit history and notes timeline per client.
-5. Split the large inline scripts into shared modules for easier maintenance.
+1. Add product catalog and quote/proposal records.
+2. Add file attachments for visits and opportunities.
+3. Add audit history and notes timeline per client.
+4. Split the large inline scripts into shared modules for easier maintenance.
