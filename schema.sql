@@ -7,7 +7,8 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   nome text not null,
   role text not null default 'comercial',
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.clientes (
@@ -18,7 +19,8 @@ create table if not exists public.clientes (
   morada text,
   notas text,
   criado_por uuid references public.profiles(id) on delete set null,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.contactos (
@@ -29,7 +31,8 @@ create table if not exists public.contactos (
   tel text,
   email text,
   notas text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.visitas (
@@ -43,7 +46,8 @@ create table if not exists public.visitas (
   proximo_passo text,
   contacto_id uuid references public.contactos(id) on delete set null,
   criado_por uuid references public.profiles(id) on delete set null,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.oportunidades (
@@ -58,7 +62,8 @@ create table if not exists public.oportunidades (
   notas text,
   estado text not null default 'aberta',
   criado_por uuid references public.profiles(id) on delete set null,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.tarefas (
@@ -71,11 +76,19 @@ create table if not exists public.tarefas (
   notas text,
   estado text not null default 'pendente',
   criado_por uuid references public.profiles(id) on delete set null,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 alter table public.profiles
   alter column role set default 'comercial';
+
+alter table public.profiles add column if not exists updated_at timestamptz not null default now();
+alter table public.clientes add column if not exists updated_at timestamptz not null default now();
+alter table public.contactos add column if not exists updated_at timestamptz not null default now();
+alter table public.visitas add column if not exists updated_at timestamptz not null default now();
+alter table public.oportunidades add column if not exists updated_at timestamptz not null default now();
+alter table public.tarefas add column if not exists updated_at timestamptz not null default now();
 
 alter table public.clientes
   drop column if exists contacto,
@@ -128,11 +141,41 @@ begin
   if not exists (
     select 1
     from pg_constraint
+    where conname = 'oportunidades_valor_check'
+  ) then
+    alter table public.oportunidades
+      add constraint oportunidades_valor_check
+      check (valor >= 0);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'oportunidades_probabilidade_check'
+  ) then
+    alter table public.oportunidades
+      add constraint oportunidades_probabilidade_check
+      check (probabilidade between 0 and 100);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
     where conname = 'tarefas_estado_check'
   ) then
     alter table public.tarefas
       add constraint tarefas_estado_check
       check (estado in ('pendente', 'concluida'));
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'contactos_email_check'
+  ) then
+    alter table public.contactos
+      add constraint contactos_email_check
+      check (email is null or position('@' in email) > 1);
   end if;
 end $$;
 
@@ -140,13 +183,16 @@ create index if not exists idx_profiles_role on public.profiles(role);
 create index if not exists idx_clientes_criado_por on public.clientes(criado_por);
 create index if not exists idx_contactos_cliente_id on public.contactos(cliente_id);
 create index if not exists idx_visitas_criado_por_data on public.visitas(criado_por, data desc);
+create index if not exists idx_visitas_data on public.visitas(data desc);
 create index if not exists idx_visitas_cliente_id on public.visitas(cliente_id);
 create index if not exists idx_visitas_contacto_id on public.visitas(contacto_id);
 create index if not exists idx_oportunidades_criado_por_estado on public.oportunidades(criado_por, estado);
 create index if not exists idx_oportunidades_cliente_id on public.oportunidades(cliente_id);
 create index if not exists idx_oportunidades_data_fecho on public.oportunidades(data_fecho);
+create index if not exists idx_oportunidades_abertas_fecho on public.oportunidades(criado_por, data_fecho) where estado = 'aberta';
 create index if not exists idx_tarefas_criado_por_estado_data on public.tarefas(criado_por, estado, data_limite);
 create index if not exists idx_tarefas_cliente_id on public.tarefas(cliente_id);
+create index if not exists idx_tarefas_pendentes_data on public.tarefas(criado_por, data_limite) where estado = 'pendente';
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -175,6 +221,118 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+create or replace function public.sync_cliente_denormalized_fields()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.visitas
+  set cliente_nome = new.nome
+  where cliente_id = new.id
+    and cliente_nome is distinct from new.nome;
+
+  update public.oportunidades
+  set cliente_nome = new.nome
+  where cliente_id = new.id
+    and cliente_nome is distinct from new.nome;
+
+  update public.tarefas
+  set cliente_nome = new.nome
+  where cliente_id = new.id
+    and cliente_nome is distinct from new.nome;
+
+  return new;
+end;
+$$;
+
+create or replace function public.prepare_visita()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  cliente_nome_value text;
+  contacto_cliente_id uuid;
+begin
+  if new.cliente_id is not null then
+    select nome into cliente_nome_value
+    from public.clientes
+    where id = new.cliente_id;
+
+    new.cliente_nome = cliente_nome_value;
+  else
+    new.cliente_nome = null;
+  end if;
+
+  if new.contacto_id is not null then
+    select cliente_id into contacto_cliente_id
+    from public.contactos
+    where id = new.contacto_id;
+
+    if contacto_cliente_id is null then
+      raise exception 'Contacto inválido para a visita.';
+    end if;
+
+    if new.cliente_id is distinct from contacto_cliente_id then
+      raise exception 'O contacto selecionado não pertence ao cliente da visita.';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+create or replace function public.prepare_oportunidade()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.cliente_id is not null then
+    select nome into new.cliente_nome
+    from public.clientes
+    where id = new.cliente_id;
+  else
+    new.cliente_nome = null;
+  end if;
+
+  return new;
+end;
+$$;
+
+create or replace function public.prepare_tarefa()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.cliente_id is not null then
+    select nome into new.cliente_nome
+    from public.clientes
+    where id = new.cliente_id;
+  else
+    new.cliente_nome = null;
+  end if;
+
+  return new;
+end;
+$$;
 
 create or replace function public.current_role()
 returns text
@@ -205,6 +363,56 @@ as $$
       )
   )
 $$;
+
+drop trigger if exists set_profiles_updated_at on public.profiles;
+create trigger set_profiles_updated_at
+  before update on public.profiles
+  for each row execute procedure public.set_updated_at();
+
+drop trigger if exists set_clientes_updated_at on public.clientes;
+create trigger set_clientes_updated_at
+  before update on public.clientes
+  for each row execute procedure public.set_updated_at();
+
+drop trigger if exists set_contactos_updated_at on public.contactos;
+create trigger set_contactos_updated_at
+  before update on public.contactos
+  for each row execute procedure public.set_updated_at();
+
+drop trigger if exists set_visitas_updated_at on public.visitas;
+create trigger set_visitas_updated_at
+  before update on public.visitas
+  for each row execute procedure public.set_updated_at();
+
+drop trigger if exists set_oportunidades_updated_at on public.oportunidades;
+create trigger set_oportunidades_updated_at
+  before update on public.oportunidades
+  for each row execute procedure public.set_updated_at();
+
+drop trigger if exists set_tarefas_updated_at on public.tarefas;
+create trigger set_tarefas_updated_at
+  before update on public.tarefas
+  for each row execute procedure public.set_updated_at();
+
+drop trigger if exists sync_cliente_denormalized_fields_trigger on public.clientes;
+create trigger sync_cliente_denormalized_fields_trigger
+  after update of nome on public.clientes
+  for each row execute procedure public.sync_cliente_denormalized_fields();
+
+drop trigger if exists prepare_visita_trigger on public.visitas;
+create trigger prepare_visita_trigger
+  before insert or update on public.visitas
+  for each row execute procedure public.prepare_visita();
+
+drop trigger if exists prepare_oportunidade_trigger on public.oportunidades;
+create trigger prepare_oportunidade_trigger
+  before insert or update on public.oportunidades
+  for each row execute procedure public.prepare_oportunidade();
+
+drop trigger if exists prepare_tarefa_trigger on public.tarefas;
+create trigger prepare_tarefa_trigger
+  before insert or update on public.tarefas
+  for each row execute procedure public.prepare_tarefa();
 
 grant usage on schema public to authenticated;
 

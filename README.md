@@ -6,11 +6,13 @@ Static CRM frontend backed by Supabase. The current project has two role-specifi
 - `comercial.html`: sales workflow for visits, opportunities, tasks, and contacts
 - `gestor.html`: manager dashboard, team analytics, client management, and user creation
 - `supabase.config.js`: shared browser-side Supabase config
+- `assets/js/flexbor.shared.js`: shared JS helpers for Supabase, loading states, and session cleanup
 - `schema.sql`: Supabase database schema, grants, RLS policies, and realtime publication setup
 
 ## Current architecture
 
 - Frontend: plain HTML, CSS, and browser-side JavaScript
+- Shared browser logic: `assets/js/flexbor.shared.js`
 - Backend: Supabase Auth, Postgres, and Realtime
 - Hosting: any static host works well, including GitHub Pages, Netlify, Vercel, or Supabase Storage
 

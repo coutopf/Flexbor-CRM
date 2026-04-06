@@ -9,6 +9,7 @@
 <title>Flexbor CRM — Comercial</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="supabase.config.js"></script>
+<script src="assets/js/flexbor.shared.js"></script>
 <style>
 :root{
   --bg:#f0f2f5;--s:#ffffff;--s2:#e8eaed;--s3:#dde0e5;--s4:#d0d3d8;
@@ -25,6 +26,13 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--t);min-height:100vh;font-size:15px;}
+.loading-bar{position:fixed;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--bl),var(--ac));transform:scaleX(0);transform-origin:left;opacity:0;transition:opacity .2s ease;z-index:10000;}
+body.is-loading .loading-bar{opacity:1;animation:loadingBar 1s ease-in-out infinite;}
+@keyframes loadingBar{0%{transform:scaleX(.08)}50%{transform:scaleX(.55)}100%{transform:scaleX(.92)}}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--bl);outline-offset:2px;}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important;}
+}
 
 /* TOAST */
 #toasts{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
@@ -239,6 +247,7 @@ textarea{resize:none;min-height:72px;font-size:13px;}
 </style>
 </head>
 <body>
+<div class="loading-bar" aria-hidden="true"></div>
 <div id="toasts"></div>
 
 <!-- AUTH -->
@@ -537,15 +546,13 @@ textarea{resize:none;min-height:72px;font-size:13px;}
 </div>
 
 <script>
-const SB_CONFIG=window.FLEXBOR_CONFIG?.supabase;
-if(!SB_CONFIG?.url||!SB_CONFIG?.anonKey) throw new Error('Supabase config missing. Check supabase.config.js');
-const SB_URL=SB_CONFIG.url;
-const SB_KEY=SB_CONFIG.anonKey;
-const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{storageKey:'flexbor-com-v2'}});
+const { createLookup, createSupabaseClient, clearStoredSession, setGlobalLoading } = window.FlexborShared;
+const sb=createSupabaseClient('flexbor-com-v2');
 
 let me=null, myId=null;
-let D={clientes:[],contactos:[],visitas:[],opps:[],tarefas:[]};
+let D={clientes:[],contactos:[],visitas:[],opps:[],tarefas:[],contactosById:{}};
 let tabT='pend', editingCtId=null, currentCtCliId=null, pendingCliCb=null;
+let loadToken=0;
 const newBtnLabels={home:'+ Registar visita',clientes:'+ Novo cliente',visitas:'+ Nova visita',opps:'+ Nova oportunidade',tarefas:'+ Nova tarefa'};
 
 // ── THEME ──
@@ -588,8 +595,7 @@ async function doLogout(){
   document.getElementById('ap').value='';
 }
 function clearSession(){
-  Object.keys(localStorage).forEach(k=>{if(k.startsWith('sb-')||k.startsWith('supabase')||k.startsWith('flexbor-'))localStorage.removeItem(k);});
-  Object.keys(sessionStorage).forEach(k=>{if(k.startsWith('sb-')||k.startsWith('supabase'))sessionStorage.removeItem(k);});
+  clearStoredSession();
   window.location.reload();
 }
 function showAuthError(message){
@@ -624,15 +630,27 @@ sb.auth.onAuthStateChange(async(ev,session)=>{
 
 // ── LOAD ──
 async function loadAll(){
-  const[c,ct,v,o,t]=await Promise.all([
-    sb.from('clientes').select('*').eq('criado_por',myId).order('nome'),
-    sb.from('contactos').select('*').order('nome'),
-    sb.from('visitas').select('*').eq('criado_por',myId).order('data',{ascending:false}),
-    sb.from('oportunidades').select('*').eq('criado_por',myId).order('created_at',{ascending:false}),
-    sb.from('tarefas').select('*').eq('criado_por',myId).order('data_limite')
-  ]);
-  D.clientes=c.data||[];D.contactos=ct.data||[];D.visitas=v.data||[];D.opps=o.data||[];D.tarefas=t.data||[];
-  renderAll();
+  const currentToken=++loadToken;
+  setGlobalLoading(true);
+  try{
+    const[c,ct,v,o,t]=await Promise.all([
+      sb.from('clientes').select('*').eq('criado_por',myId).order('nome'),
+      sb.from('contactos').select('*').order('nome'),
+      sb.from('visitas').select('*').eq('criado_por',myId).order('data',{ascending:false}),
+      sb.from('oportunidades').select('*').eq('criado_por',myId).order('created_at',{ascending:false}),
+      sb.from('tarefas').select('*').eq('criado_por',myId).order('data_limite')
+    ]);
+    if(currentToken!==loadToken) return;
+    D.clientes=c.data||[];
+    D.contactos=ct.data||[];
+    D.visitas=v.data||[];
+    D.opps=o.data||[];
+    D.tarefas=t.data||[];
+    D.contactosById=createLookup(D.contactos);
+    renderAll();
+  }finally{
+    if(currentToken===loadToken) setGlobalLoading(false);
+  }
 }
 function renderAll(){renderStats();renderHome();renderClientes();renderVisitas();renderOpps();renderTarefas();fillSelects();}
 
@@ -1050,7 +1068,7 @@ async function deleteCt(id){await sb.from('contactos').delete().eq('id',id);toas
 function fmtDate(d){if(!d)return'—';const p=d.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d;}
 function fmtEur(v){return(v||0).toLocaleString('pt-PT',{minimumFractionDigits:0,maximumFractionDigits:0})+' €';}
 function tipoCls(t){return{Presencial:'bbg',Videochamada:'bbl',Telefone:'bbo'}[t]||'bbgr';}
-function getContactoNome(contactoId){if(!contactoId)return'â€”';const c=D.contactos.find(x=>x.id===contactoId);return c?.nome||'â€”';}
+function getContactoNome(contactoId){if(!contactoId)return'—';return D.contactosById[contactoId]?.nome||'—';}
 function esc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 
 // ── SORT ──

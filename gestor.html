@@ -9,6 +9,7 @@
 <title>Flexbor CRM — Gestor</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="supabase.config.js"></script>
+<script src="assets/js/flexbor.shared.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 :root{
@@ -26,6 +27,13 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--t);min-height:100vh;font-size:14px;}
+.loading-bar{position:fixed;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--pu),var(--te));transform:scaleX(0);transform-origin:left;opacity:0;transition:opacity .2s ease;z-index:10000;}
+body.is-loading .loading-bar{opacity:1;animation:loadingBar 1s ease-in-out infinite;}
+@keyframes loadingBar{0%{transform:scaleX(.08)}50%{transform:scaleX(.55)}100%{transform:scaleX(.92)}}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--pu);outline-offset:2px;}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important;}
+}
 /* TOAST */
 #toasts{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
 .toast{padding:9px 16px;border-radius:30px;font-size:12px;font-weight:600;opacity:0;transform:translateX(12px);transition:all .2s;white-space:nowrap;}
@@ -194,6 +202,7 @@ tr:hover td{background:rgba(255,255,255,.015);}
 </style>
 </head>
 <body>
+<div class="loading-bar" aria-hidden="true"></div>
 <div id="toasts"></div>
 
 <!-- AUTH -->
@@ -412,25 +421,21 @@ tr:hover td{background:rgba(255,255,255,.015);}
 </div>
 
 <script>
-const SB_CONFIG=window.FLEXBOR_CONFIG?.supabase;
-if(!SB_CONFIG?.url||!SB_CONFIG?.anonKey) throw new Error('Supabase config missing. Check supabase.config.js');
-const SB_URL=SB_CONFIG.url;
-const SB_KEY=SB_CONFIG.anonKey;
-const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{storageKey:'flexbor-ges-v1'}});
-const sbProvision=supabase.createClient(SB_URL,SB_KEY,{
-  auth:{
-    storageKey:'flexbor-ges-provision',
-    persistSession:false,
-    autoRefreshToken:false,
-    detectSessionInUrl:false
-  }
+const { createLookup, createSupabaseClient, clearStoredSession, setGlobalLoading } = window.FlexborShared;
+const sb=createSupabaseClient('flexbor-ges-v1');
+const sbProvision=createSupabaseClient('flexbor-ges-provision',{
+  persistSession:false,
+  autoRefreshToken:false,
+  detectSessionInUrl:false
 });
 
 let me=null, myId=null;
-let raw={profiles:[],clientes:[],contactos:[],visitas:[],opps:[],tarefas:[]};
+let raw={profiles:[],clientes:[],contactos:[],visitas:[],opps:[],tarefas:[],profilesById:{},contactosById:{}};
 let filt={visitas:[],opps:[]};
 let charts={};
 let rankTab='visitas';
+let loadToken=0;
+let realtimeReady=false;
 
 // TOAST
 function toast(msg,type='ok',dur=2800){
@@ -489,6 +494,8 @@ sb.auth.onAuthStateChange(async(ev,session)=>{
 
 // REALTIME — re-carrega quando há alterações
 function setupRealtime(){
+  if(realtimeReady) return;
+  realtimeReady=true;
   ['visitas','oportunidades','tarefas','clientes','profiles','contactos'].forEach(t=>{
     sb.channel('rt-'+t).on('postgres_changes',{event:'*',schema:'public',table:t},()=>loadAll()).subscribe();
   });
@@ -521,6 +528,36 @@ function fillProfileFilters(){
   });
 }
 
+async function loadAll(){
+  const currentToken=++loadToken;
+  setGlobalLoading(true);
+  try{
+    const[pr,cl,ct,vi,op,ta]=await Promise.all([
+      sb.from('profiles').select('*'),
+      sb.from('clientes').select('*').order('nome',{ascending:true}),
+      sb.from('contactos').select('*').order('nome'),
+      sb.from('visitas').select('*').order('data',{ascending:false}),
+      sb.from('oportunidades').select('*').order('created_at',{ascending:false}),
+      sb.from('tarefas').select('*').order('data_limite')
+    ]);
+    if(currentToken!==loadToken) return;
+    raw.profiles=pr.data||[];
+    raw.clientes=cl.data||[];
+    raw.contactos=ct.data||[];
+    raw.visitas=vi.data||[];
+    raw.opps=op.data||[];
+    raw.tarefas=ta.data||[];
+    raw.profilesById=createLookup(raw.profiles);
+    raw.contactosById=createLookup(raw.contactos);
+    fillProfileFilters();
+    applyFilter();
+    const lu=document.getElementById('last-update');
+    if(lu) lu.textContent='Atualizado Ã s '+new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
+  }finally{
+    if(currentToken===loadToken) setGlobalLoading(false);
+  }
+}
+
 function applyFilter(){
   const uid=document.getElementById('f-com').value;
   const per=document.getElementById('f-per').value;
@@ -548,6 +585,9 @@ function contactoNome(id){if(!id)return'—';const c=raw.contactos.find(x=>x.id=
 function dc(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 function daysLeft(d){if(!d)return null;const today=new Date();today.setHours(0,0,0,0);return Math.ceil((new Date(d)-today)/86400000);}
 function rndColor(i){return['#a78bfa','#4da6ff','#4dca7a','#ff8c42','#2dd4bf','#e8ff5a'][i%6];}
+
+function profName(uid){return raw.profilesById[uid]?.nome||'â€”';}
+function contactoNome(id){if(!id)return'â€”';return raw.contactosById[id]?.nome||'â€”';}
 
 // DASHBOARD
 function renderDash(){
@@ -1087,6 +1127,11 @@ function clearSession(){
   Object.keys(sessionStorage).forEach(k=>{
     if(k.startsWith('sb-')||k.startsWith('supabase')) sessionStorage.removeItem(k);
   });
+  window.location.reload();
+}
+
+function clearSession(){
+  clearStoredSession();
   window.location.reload();
 }
 </script>
