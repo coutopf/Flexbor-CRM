@@ -430,7 +430,7 @@ const sbProvision=createSupabaseClient('flexbor-ges-provision',{
 });
 
 let me=null, myId=null;
-let raw={profiles:[],clientes:[],contactos:[],visitas:[],opps:[],tarefas:[],profilesById:{},contactosById:{}};
+let raw={profiles:[],clientes:[],contactos:[],visitas:[],opps:[],tarefas:[],propostas:[],profilesById:{},contactosById:{}};
 let filt={visitas:[],opps:[]};
 let charts={};
 let rankTab='visitas';
@@ -496,7 +496,7 @@ sb.auth.onAuthStateChange(async(ev,session)=>{
 function setupRealtime(){
   if(realtimeReady) return;
   realtimeReady=true;
-  ['visitas','oportunidades','tarefas','clientes','profiles','contactos'].forEach(t=>{
+  ['visitas','oportunidades','tarefas','clientes','profiles','contactos','propostas','proposta_itens'].forEach(t=>{
     sb.channel('rt-'+t).on('postgres_changes',{event:'*',schema:'public',table:t},()=>loadAll()).subscribe();
   });
 }
@@ -532,13 +532,14 @@ async function loadAll(){
   const currentToken=++loadToken;
   setGlobalLoading(true);
   try{
-    const[pr,cl,ct,vi,op,ta]=await Promise.all([
+    const[pr,cl,ct,vi,op,ta,pp]=await Promise.all([
       sb.from('profiles').select('*'),
       sb.from('clientes').select('*').order('nome',{ascending:true}),
       sb.from('contactos').select('*').order('nome'),
       sb.from('visitas').select('*').order('data',{ascending:false}),
       sb.from('oportunidades').select('*').order('created_at',{ascending:false}),
-      sb.from('tarefas').select('*').order('data_limite')
+      sb.from('tarefas').select('*').order('data_limite'),
+      sb.from('propostas').select('*, proposta_itens(*)').order('created_at',{ascending:false})
     ]);
     if(currentToken!==loadToken) return;
     raw.profiles=pr.data||[];
@@ -547,6 +548,7 @@ async function loadAll(){
     raw.visitas=vi.data||[];
     raw.opps=op.data||[];
     raw.tarefas=ta.data||[];
+    raw.propostas=pp.data||[];
     raw.profilesById=createLookup(raw.profiles);
     raw.contactosById=createLookup(raw.contactos);
     fillProfileFilters();
@@ -572,7 +574,7 @@ function applyFilter(){
   renderAll();
 }
 
-function renderAll(){renderDash();renderAlertas();renderPipeline();renderRelatorios();renderRanking();renderVisitas();renderOpps();renderEquipa();renderClientes();fillClienteComercialFilter();}
+function renderAll(){renderDash();renderAlertas();renderPipeline();renderRelatorios();renderRanking();renderVisitas();renderOpps();renderPropostas();renderEquipa();renderClientes();fillClienteComercialFilter();}
 
 // HELPERS
 function fmtDate(d){if(!d)return'—';const p=d.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d;}
@@ -1115,6 +1117,198 @@ async function deleteContacto(id){
   await sb.from('contactos').delete().eq('id',id);
   toast('Eliminado','inf');
   loadContactos(currentClienteId);
+}
+
+bootstrapGestorExtensions();
+
+function bootstrapGestorExtensions(){
+  if(!document.getElementById('view-propostas')){
+    const oppView=document.getElementById('view-opps');
+    if(oppView){
+      oppView.insertAdjacentHTML('afterend',`
+      <div class="view" id="view-propostas">
+        <div class="card">
+          <div class="tbl-search">
+            <input type="search" placeholder="Pesquisar proposta, cliente ou comercial..." id="sprop" oninput="renderPropostas()">
+          </div>
+          <table><thead><tr><th>Proposta</th><th>Cliente</th><th>Estado</th><th>Total</th><th>Validade</th><th>Comercial</th><th></th></tr></thead>
+          <tbody id="tb-propostas"></tbody></table>
+        </div>
+      </div>`);
+    }
+  }
+
+  const sideOpp=Array.from(document.querySelectorAll('.sb-item')).find((b)=>b.getAttribute('onclick')==="nav('opps',this)");
+  if(sideOpp && !Array.from(document.querySelectorAll('.sb-item')).some((b)=>b.getAttribute('onclick')==="nav('propostas',this)")){
+    sideOpp.insertAdjacentHTML('afterend',`<button class="sb-item" onclick="nav('propostas',this)"><span class="sb-ico">#</span>Propostas</button>`);
+  }
+
+  if(!document.getElementById('panel-proposta')){
+    document.body.insertAdjacentHTML('beforeend',`
+    <div class="modal-ov" id="panel-proposta" onclick="e=>{if(e.target===e.currentTarget)closePanel('proposta')}">
+      <div class="modal" style="max-width:620px">
+        <div class="modal-hd">
+          <span class="modal-title">Detalhe da proposta</span>
+          <button class="modal-close" onclick="closePanel('proposta')">x</button>
+        </div>
+        <div class="modal-body" id="panel-proposta-body" style="display:flex;flex-direction:column;gap:14px"></div>
+        <div class="modal-ft">
+          <button class="btn" onclick="closePanel('proposta')">Fechar</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ov" id="panel-cliente-timeline" onclick="e=>{if(e.target===e.currentTarget)closePanel('cliente-timeline')}">
+      <div class="modal" style="max-width:760px">
+        <div class="modal-hd">
+          <span class="modal-title" id="panel-cliente-title">Timeline do cliente</span>
+          <button class="modal-close" onclick="closePanel('cliente-timeline')">x</button>
+        </div>
+        <div class="modal-body" id="panel-cliente-body" style="display:flex;flex-direction:column;gap:14px"></div>
+        <div class="modal-ft">
+          <button class="btn" onclick="closePanel('cliente-timeline')">Fechar</button>
+        </div>
+      </div>
+    </div>`);
+  }
+}
+
+function profName(uid){return raw.profilesById[uid]?.nome||'—';}
+function contactoNome(id){if(!id)return'—';return raw.contactosById[id]?.nome||'—';}
+
+function closePanel(type){
+  const id=type==='cliente-timeline'?'panel-cliente-timeline':'panel-'+type;
+  const el=document.getElementById(id);
+  if(el) el.classList.remove('on');
+}
+
+function nav(view,btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('on'));
+  const viewEl=document.getElementById('view-'+view);
+  if(viewEl) viewEl.classList.add('on');
+  if(btn) btn.classList.add('on');
+  const titles={dashboard:'Dashboard',alertas:'Alertas',pipeline:'Pipeline',relatorios:'Relatorios',ranking:'Ranking',visitas:'Todas as visitas',opps:'Oportunidades',propostas:'Propostas',equipa:'Equipa',clientes:'Clientes'};
+  document.getElementById('page-title').textContent=titles[view]||view;
+  if(['pipeline','ranking','visitas','opps','propostas','clientes'].includes(view))renderAll();
+}
+
+function proposalStatusClass(status){
+  return {Rascunho:'bbgr',Enviada:'bbo',Aprovada:'bbg',Perdida:'bbr'}[status]||'bbgr';
+}
+
+function renderPropostas(){
+  const tb=document.getElementById('tb-propostas');
+  if(!tb) return;
+  const q=(document.getElementById('sprop')?.value||'').toLowerCase();
+  const list=raw.propostas.filter((p)=>{
+    const owner=profName(p.criado_por).toLowerCase();
+    return !q||p.titulo.toLowerCase().includes(q)||(p.cliente_nome||'').toLowerCase().includes(q)||owner.includes(q);
+  });
+  tb.innerHTML=list.length===0?'<tr><td colspan="7"><div class="empty" style="padding:24px">Sem propostas para mostrar.</div></td></tr>':
+    list.map((p)=>`<tr style="cursor:pointer" onclick="showPropostaDetail('${p.id}')">
+      <td><strong>${p.titulo}</strong><div style="font-size:10px;color:var(--t3)">${(p.proposta_itens||[]).length} linha(s)</div></td>
+      <td>${p.cliente_nome||'—'}</td>
+      <td><span class="badge ${proposalStatusClass(p.estado)}">${p.estado}</span></td>
+      <td style="font-family:monospace">${fmtEur(p.total)}</td>
+      <td>${fmtDate(p.validade)}</td>
+      <td>${profName(p.criado_por)}</td>
+      <td><span style="font-size:11px;color:var(--bl)">Ver -></span></td>
+    </tr>`).join('');
+}
+
+async function updatePropostaEstado(id,estado){
+  const {error}=await sb.from('propostas').update({estado}).eq('id',id);
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast('Estado da proposta atualizado.','ok');
+  await loadAll();
+  showPropostaDetail(id);
+}
+
+function showPropostaDetail(id){
+  const p=raw.propostas.find((x)=>x.id===id);
+  if(!p)return;
+  const lines=(p.proposta_itens||[]).sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+  const body=document.getElementById('panel-proposta-body');
+  body.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      ${detailField('Proposta','<strong>'+p.titulo+'</strong>')}
+      ${detailField('Cliente',p.cliente_nome||'—')}
+      ${detailField('Estado','<span class="badge '+proposalStatusClass(p.estado)+'">'+p.estado+'</span>')}
+      ${detailField('Comercial',profName(p.criado_por))}
+      ${detailField('Total','<strong style="font-family:monospace">'+fmtEur(p.total)+'</strong>')}
+      ${detailField('Validade',fmtDate(p.validade))}
+      ${p.follow_up_em?detailField('Follow-up',fmtDate(p.follow_up_em)):''}
+    </div>
+    <div style="background:var(--s2);border-radius:var(--r);padding:12px 14px">
+      <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Linhas</div>
+      ${lines.length?lines.map((item)=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--b)"><span>${item.descricao}</span><strong style="font-family:monospace">${item.quantidade} x ${fmtEur(item.preco_unitario)}</strong></div>`).join(''):'<div style="font-size:12px;color:var(--t3)">Sem linhas.</div>'}
+    </div>
+    ${p.notas?detailBlock('Notas',p.notas):''}
+    <div style="display:flex;gap:8px;align-items:center">
+      <select class="btn btn-full" style="text-align:left" onchange="updatePropostaEstado('${p.id}',this.value)">
+        ${['Rascunho','Enviada','Aprovada','Perdida'].map((estado)=>`<option ${estado===p.estado?'selected':''}>${estado}</option>`).join('')}
+      </select>
+      <button class="btn" onclick="showClienteTimeline('${p.cliente_id}')">Ver timeline</button>
+    </div>`;
+  document.getElementById('panel-proposta').classList.add('on');
+}
+
+function getClienteTimelineEntries(clienteId){
+  const entries=[];
+  raw.visitas.filter((v)=>v.cliente_id===clienteId).forEach((v)=>entries.push({sortDate:v.data||v.created_at||'',type:'Visita',badge:tipoCls(v.tipo),title:v.tipo,meta:fmtDate(v.data)+' · '+profName(v.criado_por),text:[contactoNome(v.contacto_id),v.objetivo,v.proximo_passo].filter(Boolean).join(' · ')}));
+  raw.opps.filter((o)=>o.cliente_id===clienteId).forEach((o)=>entries.push({sortDate:o.data_fecho||o.created_at||'',type:'Oportunidade',badge:'bbl',title:o.nome,meta:o.fase+' · '+profName(o.criado_por),text:fmtEur(o.valor)}));
+  raw.propostas.filter((p)=>p.cliente_id===clienteId).forEach((p)=>entries.push({sortDate:p.validade||p.created_at||'',type:'Proposta',badge:proposalStatusClass(p.estado),title:p.titulo,meta:p.estado+' · '+profName(p.criado_por),text:fmtEur(p.total)}));
+  raw.tarefas.filter((t)=>t.cliente_id===clienteId).forEach((t)=>entries.push({sortDate:t.data_limite||t.created_at||'',type:'Tarefa',badge:t.estado==='concluida'?'bbg':t.automatica?'bba':'bbo',title:t.descricao,meta:t.tipo+' · '+profName(t.criado_por),text:t.notas||''}));
+  return entries.sort((a,b)=>String(b.sortDate).localeCompare(String(a.sortDate)));
+}
+
+function showClienteTimeline(clienteId){
+  const cliente=raw.clientes.find((c)=>c.id===clienteId);
+  if(!cliente)return;
+  const entries=getClienteTimelineEntries(clienteId);
+  document.getElementById('panel-cliente-title').textContent='Timeline - '+cliente.nome;
+  const body=document.getElementById('panel-cliente-body');
+  body.innerHTML='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">'
+    +detailField('Visitas',String(raw.visitas.filter((v)=>v.cliente_id===clienteId).length))
+    +detailField('Oportunidades',String(raw.opps.filter((o)=>o.cliente_id===clienteId).length))
+    +detailField('Propostas',String(raw.propostas.filter((p)=>p.cliente_id===clienteId).length))
+    +detailField('Tarefas pendentes',String(raw.tarefas.filter((t)=>t.cliente_id===clienteId&&t.estado==='pendente').length))
+    +'</div>'
+    +(entries.length?entries.map((entry)=>`<div class="irow" style="border:1px solid var(--b);border-radius:var(--r);padding:12px 14px"><div class="irow-top"><span class="badge ${entry.badge}">${entry.type}</span><span class="irow-name">${entry.title}</span><span style="font-size:11px;color:var(--t3)">${entry.meta}</span></div>${entry.text?`<div class="irow-sub" style="margin-top:6px">${entry.text}</div>`:''}</div>`).join(''):'<div class="empty" style="padding:24px">Sem atividade para este cliente.</div>');
+  document.getElementById('panel-cliente-timeline').classList.add('on');
+}
+
+function renderClientes(){
+  const q=(document.getElementById('sc')?.value||'').toLowerCase();
+  const setor=document.getElementById('fcs')?.value||'';
+  const comId=document.getElementById('fcc')?.value||'';
+  const list=raw.clientes.filter((c)=>{
+    const ms=!q||c.nome.toLowerCase().includes(q)||(c.morada||'').toLowerCase().includes(q)||(c.tel||'').toLowerCase().includes(q);
+    const mst=!setor||c.setor===setor;
+    const mc=!comId||c.criado_por===comId;
+    return ms&&mst&&mc;
+  });
+  const tb=document.getElementById('tb-clientes');
+  if(!tb)return;
+  if(!list.length){tb.innerHTML='<tr><td colspan="8"><div class="empty" style="padding:24px">Sem clientes ainda. Usa o botao <strong>+ Novo cliente</strong> para criar o primeiro.</div></td></tr>';return;}
+  tb.innerHTML=list.map((c)=>{
+    const nv=raw.visitas.filter((v)=>v.cliente_id===c.id).length;
+    const no=raw.opps.filter((o)=>o.cliente_id===c.id&&o.estado==='aberta').length;
+    return`<tr>
+      <td><strong>${c.nome}</strong></td>
+      <td>${c.setor||'—'}</td>
+      <td>${c.tel||'—'}</td>
+      <td>${c.morada||'—'}</td>
+      <td>${profName(c.criado_por)}</td>
+      <td>${nv}</td>
+      <td>${no>0?`<span class="badge bba">${no}</span>`:'0'}</td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="showClienteTimeline('${c.id}')">TL</button>
+        <button class="btn btn-sm" onclick="editCliente('${c.id}')">Editar</button>
+        <button class="btn btn-sm" onclick="openContactos('${c.id}','${esc2(c.nome)}')">Contactos</button>
+      </td>
+    </tr>`;
+  }).join('');
 }
 
 

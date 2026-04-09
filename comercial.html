@@ -550,10 +550,10 @@ const { createLookup, createSupabaseClient, clearStoredSession, setGlobalLoading
 const sb=createSupabaseClient('flexbor-com-v2');
 
 let me=null, myId=null;
-let D={clientes:[],contactos:[],visitas:[],opps:[],tarefas:[],contactosById:{}};
+let D={clientes:[],contactos:[],visitas:[],opps:[],tarefas:[],propostas:[],contactosById:{}};
 let tabT='pend', editingCtId=null, currentCtCliId=null, pendingCliCb=null;
 let loadToken=0;
-const newBtnLabels={home:'+ Registar visita',clientes:'+ Novo cliente',visitas:'+ Nova visita',opps:'+ Nova oportunidade',tarefas:'+ Nova tarefa'};
+const newBtnLabels={home:'+ Registar visita',clientes:'+ Novo cliente',visitas:'+ Nova visita',opps:'+ Nova oportunidade',propostas:'+ Nova proposta',tarefas:'+ Nova tarefa'};
 
 // ── THEME ──
 (function(){
@@ -633,12 +633,13 @@ async function loadAll(){
   const currentToken=++loadToken;
   setGlobalLoading(true);
   try{
-    const[c,ct,v,o,t]=await Promise.all([
+    const[c,ct,v,o,t,p]=await Promise.all([
       sb.from('clientes').select('*').eq('criado_por',myId).order('nome'),
       sb.from('contactos').select('*').order('nome'),
       sb.from('visitas').select('*').eq('criado_por',myId).order('data',{ascending:false}),
       sb.from('oportunidades').select('*').eq('criado_por',myId).order('created_at',{ascending:false}),
-      sb.from('tarefas').select('*').eq('criado_por',myId).order('data_limite')
+      sb.from('tarefas').select('*').eq('criado_por',myId).order('data_limite'),
+      sb.from('propostas').select('*, proposta_itens(*)').eq('criado_por',myId).order('created_at',{ascending:false})
     ]);
     if(currentToken!==loadToken) return;
     D.clientes=c.data||[];
@@ -646,13 +647,14 @@ async function loadAll(){
     D.visitas=v.data||[];
     D.opps=o.data||[];
     D.tarefas=t.data||[];
+    D.propostas=p.data||[];
     D.contactosById=createLookup(D.contactos);
     renderAll();
   }finally{
     if(currentToken===loadToken) setGlobalLoading(false);
   }
 }
-function renderAll(){renderStats();renderHome();renderClientes();renderVisitas();renderOpps();renderTarefas();fillSelects();}
+function renderAll(){renderStats();renderHome();renderClientes();renderVisitas();renderOpps();renderPropostas();renderTarefas();fillSelects();}
 
 // ── STATS ──
 function renderStats(){
@@ -1153,6 +1155,384 @@ function showOppDetail(id){
     +'</select></div>';
   body.innerHTML=html;
   document.getElementById('mov-opp-detail').classList.add('on');
+}
+
+bootstrapCommercialExtensions();
+
+function bootstrapCommercialExtensions(){
+  if(!document.getElementById('view-propostas')){
+    const oppView=document.getElementById('view-opps');
+    if(oppView){
+      oppView.insertAdjacentHTML('afterend',`
+      <div class="view" id="view-propostas">
+        <div class="card">
+          <div class="tbl-search">
+            <input type="search" placeholder="Pesquisar proposta ou cliente..." id="sp" oninput="renderPropostas()" style="max-width:320px">
+          </div>
+          <table>
+            <thead><tr><th>Titulo</th><th>Cliente</th><th>Estado</th><th>Total</th><th>Validade</th><th></th></tr></thead>
+            <tbody id="tb-propostas"></tbody>
+          </table>
+        </div>
+      </div>`);
+    }
+  }
+
+  if(!document.getElementById('mov-proposta')){
+    document.body.insertAdjacentHTML('beforeend',`
+    <div class="mov" id="mov-proposta" onclick="e=>{if(e.target===e.currentTarget)closeModal('proposta')}">
+      <div class="modal" style="max-width:760px">
+        <div class="modal-hd"><span class="modal-title">Nova proposta</span><button class="modal-close" onclick="closeModal('proposta')">x</button></div>
+        <div class="modal-body">
+          <div class="fg2">
+            <div class="fg"><label>Titulo *</label><input type="text" id="p-titulo" autocomplete="off" placeholder="Ex: Orcamento manutencao anual"></div>
+            <div class="fg"><label>Estado</label><select id="p-estado"><option>Rascunho</option><option>Enviada</option><option>Aprovada</option><option>Perdida</option></select></div>
+          </div>
+          <div class="fg2">
+            <div class="fg"><label>Cliente *</label><select id="p-cliente" onchange="fillProposalOpps()"><option value="">- selecionar -</option></select></div>
+            <div class="fg"><label>Oportunidade</label><select id="p-oportunidade"><option value="">- opcional -</option></select></div>
+          </div>
+          <div class="fg2">
+            <div class="fg"><label>Validade</label><input type="date" id="p-validade"></div>
+            <div class="fg"><label>Follow-up</label><input type="date" id="p-followup"></div>
+          </div>
+          <div class="fg"><label>Itens</label><div id="p-items" style="display:flex;flex-direction:column;gap:10px"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px">
+            <button class="btn" type="button" onclick="addProposalLine()">+ Adicionar linha</button>
+            <div id="p-totais" style="font-size:12px;color:var(--t2)"></div>
+          </div>
+          <div class="fg2">
+            <div class="fg"><label>Desconto global (EUR)</label><input type="number" id="p-desconto" value="0" min="0" step="0.01" inputmode="decimal" oninput="updateProposalTotals()"></div>
+            <div class="fg"><label>Notas</label><input type="text" id="p-notas" autocomplete="off" placeholder="Resumo comercial ou condicoes"></div>
+          </div>
+          <div id="p-err" style="margin-top:6px"></div>
+        </div>
+        <div class="modal-ft">
+          <button class="btn" onclick="closeModal('proposta')">Cancelar</button>
+          <button class="btn btn-p" id="p-save-btn" onclick="saveProposta()">Guardar proposta</button>
+        </div>
+      </div>
+    </div>
+    <div class="mov" id="mov-proposta-detail" onclick="e=>{if(e.target===e.currentTarget)closeModal('proposta-detail')}">
+      <div class="modal" style="max-width:560px">
+        <div class="modal-hd"><span class="modal-title">Detalhe da proposta</span><button class="modal-close" onclick="closeModal('proposta-detail')">x</button></div>
+        <div class="modal-body" id="proposta-detail-body" style="display:flex;flex-direction:column;gap:12px"></div>
+        <div class="modal-ft"><button class="btn btn-full" onclick="closeModal('proposta-detail')">Fechar</button></div>
+      </div>
+    </div>
+    <div class="mov" id="mov-cliente-timeline" onclick="e=>{if(e.target===e.currentTarget)closeModal('cliente-timeline')}">
+      <div class="modal" style="max-width:760px">
+        <div class="modal-hd"><span class="modal-title" id="cliente-timeline-title">Timeline do cliente</span><button class="modal-close" onclick="closeModal('cliente-timeline')">x</button></div>
+        <div class="modal-body" id="cliente-timeline-body" style="display:flex;flex-direction:column;gap:14px"></div>
+        <div class="modal-ft"><button class="btn btn-full" onclick="closeModal('cliente-timeline')">Fechar</button></div>
+      </div>
+    </div>`);
+  }
+
+  if(!document.getElementById('bn-propostas')){
+    const mobileOpp=document.getElementById('bn-opps');
+    if(mobileOpp) mobileOpp.insertAdjacentHTML('afterend',`<button class="bn" id="bn-propostas" onclick="nav('propostas',this)"><span class="bn-ico">#</span>Prop.</button>`);
+  }
+
+  const sideOpp=Array.from(document.querySelectorAll('.sb-item')).find((b)=>b.getAttribute('onclick')==="nav('opps',this)");
+  if(sideOpp && !Array.from(document.querySelectorAll('.sb-item')).some((b)=>b.getAttribute('onclick')==="nav('propostas',this)")){
+    sideOpp.insertAdjacentHTML('afterend',`<button class="sb-item" onclick="nav('propostas',this)"><span class="sb-ico">#</span>Propostas</button>`);
+  }
+}
+
+function nav(view,btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.bn').forEach(b=>b.classList.remove('on'));
+  const viewEl=document.getElementById('view-'+view);
+  if(viewEl) viewEl.classList.add('on');
+  if(btn) btn.classList.add('on');
+  const bnEl=document.getElementById('bn-'+view);if(bnEl)bnEl.classList.add('on');
+  const titles={home:'Inicio',clientes:'Clientes',visitas:'Visitas',opps:'Oportunidades',propostas:'Propostas',tarefas:'Tarefas'};
+  document.getElementById('page-title').textContent=titles[view]||view;
+  document.getElementById('topbar-new-btn').textContent=newBtnLabels[view]||'+ Novo';
+}
+
+function handleNewBtn(){
+  const view=document.querySelector('.view.on')?.id.replace('view-','')||'home';
+  const map={home:'visita',clientes:'cliente',visitas:'visita',opps:'opp',propostas:'proposta',tarefas:'tarefa'};
+  openModal(map[view]||'visita');
+}
+
+function openModal(type){
+  fillSelects();
+  const today=new Date().toISOString().split('T')[0];
+  if(type==='visita'){document.getElementById('v-data').value=today;resetWizard();}
+  if(type==='tarefa')document.getElementById('t-data').value=today;
+  if(type==='proposta')resetPropostaModal();
+  if(type==='cliente'){
+    document.getElementById('modal-cli-title').textContent='Novo cliente';
+    document.getElementById('c-save-btn').onclick=saveCliente;
+    ['c-nome','c-tel','c-morada','c-notas'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('c-err').style.display='none';
+    document.getElementById('c-nome').style.borderColor='';
+  }
+  document.getElementById('mov-'+type).classList.add('on');
+}
+
+function openModalWithCli(type,cid){
+  openModal(type);
+  setTimeout(()=>{
+    if(type==='visita'){
+      const el=document.getElementById('v-cliente');
+      if(el){el.value=cid;loadContactosVisita();}
+    }else if(type==='opp'){
+      const el=document.getElementById('o-cliente');
+      if(el) el.value=cid;
+    }else if(type==='proposta'){
+      const el=document.getElementById('p-cliente');
+      if(el){el.value=cid;fillProposalOpps();}
+    }
+  },50);
+}
+
+function proposalStatusClass(status){
+  return {Rascunho:'bbgr',Enviada:'bbo',Aprovada:'bbg',Perdida:'bbr'}[status]||'bbgr';
+}
+
+function fillProposalOpps(){
+  const el=document.getElementById('p-oportunidade');
+  const clientId=document.getElementById('p-cliente')?.value||'';
+  if(!el) return;
+  const options=D.opps.filter((o)=>!clientId||o.cliente_id===clientId).map((o)=>`<option value="${o.id}">${o.nome}</option>`).join('');
+  el.innerHTML=`<option value="">- opcional -</option>${options}`;
+}
+
+function fillSelects(){
+  const opts=D.clientes.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('');
+  ['v-cliente','o-cliente','p-cliente'].forEach((id)=>{const el=document.getElementById(id);if(el)el.innerHTML=`<option value="">- selecionar -</option>${opts}`;});
+  const tc=document.getElementById('t-cliente');if(tc)tc.innerHTML=`<option value="">Nenhum</option>${opts}`;
+  fillProposalOpps();
+}
+
+function addProposalLine(item={}){
+  const wrap=document.getElementById('p-items');
+  if(!wrap) return;
+  wrap.insertAdjacentHTML('beforeend',`
+    <div class="fg2 p-line" style="background:var(--s2);padding:10px;border-radius:var(--r)">
+      <div class="fg" style="margin-bottom:0">
+        <label>Descricao</label>
+        <input type="text" class="p-item-desc" value="${esc(item.descricao||'')}" autocomplete="off" placeholder="Servico ou produto" oninput="updateProposalTotals()">
+      </div>
+      <div class="fg2" style="margin-bottom:0">
+        <div class="fg" style="margin-bottom:0">
+          <label>Qtd.</label>
+          <input type="number" class="p-item-qty" value="${item.quantidade||1}" min="0.01" step="0.01" inputmode="decimal" oninput="updateProposalTotals()">
+        </div>
+        <div class="fg" style="margin-bottom:0">
+          <label>Preco</label>
+          <input type="number" class="p-item-price" value="${item.preco_unitario||0}" min="0" step="0.01" inputmode="decimal" oninput="updateProposalTotals()">
+        </div>
+      </div>
+      <div class="fg2" style="grid-column:1 / -1;margin-bottom:0">
+        <div class="fg" style="margin-bottom:0">
+          <label>Desc. linha</label>
+          <input type="number" class="p-item-discount" value="${item.desconto||0}" min="0" step="0.01" inputmode="decimal" oninput="updateProposalTotals()">
+        </div>
+        <div class="fg" style="display:flex;align-items:flex-end;margin-bottom:0">
+          <button class="btn btn-del btn-full" type="button" onclick="removeProposalLine(this)">Remover linha</button>
+        </div>
+      </div>
+    </div>`);
+  updateProposalTotals();
+}
+
+function removeProposalLine(btn){
+  btn.closest('.p-line')?.remove();
+  updateProposalTotals();
+}
+
+function collectProposalLines(){
+  return Array.from(document.querySelectorAll('#p-items .p-line')).map((row,idx)=>{
+    const descricao=row.querySelector('.p-item-desc').value.trim();
+    const quantidade=parseFloat(row.querySelector('.p-item-qty').value)||0;
+    const preco_unitario=parseFloat(row.querySelector('.p-item-price').value)||0;
+    const desconto=parseFloat(row.querySelector('.p-item-discount').value)||0;
+    return {descricao,quantidade,preco_unitario,desconto,ordem:idx+1};
+  }).filter((item)=>item.descricao && item.quantidade>0);
+}
+
+function getProposalTotals(){
+  const linhas=collectProposalLines();
+  const subtotal=linhas.reduce((sum,item)=>sum+Math.max((item.quantidade*item.preco_unitario)-item.desconto,0),0);
+  const descontoGlobal=parseFloat(document.getElementById('p-desconto')?.value||0)||0;
+  return {linhas,subtotal,descontoGlobal,total:Math.max(subtotal-descontoGlobal,0)};
+}
+
+function updateProposalTotals(){
+  const totals=getProposalTotals();
+  const info=document.getElementById('p-totais');
+  if(info) info.innerHTML=`Subtotal <strong>${fmtEur(totals.subtotal)}</strong> · Total <strong>${fmtEur(totals.total)}</strong>`;
+}
+
+function resetPropostaModal(){
+  ['p-titulo','p-notas'].forEach((id)=>{const el=document.getElementById(id);if(el)el.value='';});
+  const today=new Date();
+  const validade=new Date(today);validade.setDate(validade.getDate()+7);
+  const followup=new Date(today);followup.setDate(followup.getDate()+3);
+  if(document.getElementById('p-validade')) document.getElementById('p-validade').value=validade.toISOString().split('T')[0];
+  if(document.getElementById('p-followup')) document.getElementById('p-followup').value=followup.toISOString().split('T')[0];
+  if(document.getElementById('p-desconto')) document.getElementById('p-desconto').value='0';
+  if(document.getElementById('p-estado')) document.getElementById('p-estado').value='Rascunho';
+  if(document.getElementById('p-cliente')) document.getElementById('p-cliente').value='';
+  if(document.getElementById('p-oportunidade')) document.getElementById('p-oportunidade').innerHTML='<option value="">- opcional -</option>';
+  if(document.getElementById('p-err')) document.getElementById('p-err').innerHTML='';
+  const items=document.getElementById('p-items');
+  if(items) items.innerHTML='';
+  addProposalLine();
+}
+
+async function saveProposta(){
+  const titulo=document.getElementById('p-titulo').value.trim();
+  const cliente_id=document.getElementById('p-cliente').value;
+  const {linhas,subtotal,descontoGlobal,total}=getProposalTotals();
+  if(!titulo||!cliente_id){document.getElementById('p-err').innerHTML='<div style="color:var(--re);font-size:12px">Titulo e cliente sao obrigatorios.</div>';return;}
+  if(!linhas.length){document.getElementById('p-err').innerHTML='<div style="color:var(--re);font-size:12px">Adiciona pelo menos uma linha valida.</div>';return;}
+  document.getElementById('p-err').innerHTML='';
+  const btn=document.getElementById('p-save-btn');btn.innerHTML='<span class="spin"></span>';btn.disabled=true;
+  const cliente=D.clientes.find((c)=>c.id===cliente_id);
+  const payload={
+    titulo,
+    cliente_id,
+    cliente_nome:cliente?.nome||'',
+    oportunidade_id:document.getElementById('p-oportunidade').value||null,
+    subtotal,
+    desconto:descontoGlobal,
+    total,
+    estado:document.getElementById('p-estado').value,
+    validade:document.getElementById('p-validade').value||null,
+    follow_up_em:document.getElementById('p-followup').value||null,
+    notas:document.getElementById('p-notas').value,
+    criado_por:myId
+  };
+  const {data:proposta,error}=await sb.from('propostas').insert(payload).select().single();
+  if(error){
+    btn.innerHTML='Guardar proposta';btn.disabled=false;
+    document.getElementById('p-err').innerHTML=`<div style="color:var(--re);font-size:12px">${error.message}</div>`;
+    return;
+  }
+  const itemPayload=linhas.map((item)=>({...item,proposta_id:proposta.id}));
+  const {error:itemError}=await sb.from('proposta_itens').insert(itemPayload);
+  if(itemError){
+    await sb.from('propostas').delete().eq('id',proposta.id);
+    btn.innerHTML='Guardar proposta';btn.disabled=false;
+    document.getElementById('p-err').innerHTML=`<div style="color:var(--re);font-size:12px">${itemError.message}</div>`;
+    return;
+  }
+  btn.innerHTML='Guardar proposta';btn.disabled=false;
+  toast('Proposta criada!','ok');
+  closeModal('proposta');
+  await loadAll();
+}
+
+function renderPropostas(){
+  const tb=document.getElementById('tb-propostas');
+  if(!tb) return;
+  const q=(document.getElementById('sp')?.value||'').toLowerCase();
+  const list=D.propostas.filter((p)=>!q||p.titulo.toLowerCase().includes(q)||(p.cliente_nome||'').toLowerCase().includes(q));
+  if(!list.length){
+    tb.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-ico">#</div><p>Sem propostas ainda.</p><div class="empty-act"><button class="btn btn-p btn-sm" onclick="openModal('proposta')">+ Nova proposta</button></div></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML=list.map((p)=>`<tr style="cursor:pointer" onclick="showPropostaDetail('${p.id}')">
+    <td><strong>${p.titulo}</strong><div style="font-size:11px;color:var(--t3)">${(p.proposta_itens||[]).length} linha(s)</div></td>
+    <td>${p.cliente_nome||'-'}</td>
+    <td><span class="badge ${proposalStatusClass(p.estado)}">${p.estado}</span></td>
+    <td style="font-family:monospace">${fmtEur(p.total)}</td>
+    <td>${fmtDate(p.validade)}</td>
+    <td><span style="font-size:11px;color:var(--bl);font-weight:600">Ver -></span></td>
+  </tr>`).join('');
+}
+
+async function updatePropostaEstado(id,estado){
+  const {error}=await sb.from('propostas').update({estado}).eq('id',id);
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast('Estado da proposta atualizado.','ok');
+  await loadAll();
+  showPropostaDetail(id);
+}
+
+function showPropostaDetail(id){
+  const p=D.propostas.find((x)=>x.id===id);if(!p)return;
+  const lines=(p.proposta_itens||[]).sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+  let html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    +dfld('Titulo','<strong>'+p.titulo+'</strong>')
+    +dfld('Cliente',p.cliente_nome||'-')
+    +dfld('Estado','<span class="badge '+proposalStatusClass(p.estado)+'">'+p.estado+'</span>')
+    +dfld('Total','<strong style="font-family:monospace">'+fmtEur(p.total)+'</strong>')
+    +'</div>';
+  html+=dfld('Validade',fmtDate(p.validade));
+  if(p.follow_up_em) html+=dfld('Follow-up',fmtDate(p.follow_up_em));
+  html+='<div style="background:var(--s2);border-radius:var(--r);padding:12px 14px">'
+    +'<div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;font-weight:700">Linhas</div>'
+    +(lines.length?lines.map((item)=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--b)"><span>${item.descricao}</span><strong style="font-family:monospace">${item.quantidade} x ${fmtEur(item.preco_unitario)}</strong></div>`).join(''):'<div style="font-size:12px;color:var(--t3)">Sem linhas.</div>')
+    +'</div>';
+  if(p.notas) html+=dfld('Notas',p.notas);
+  html+='<div style="display:flex;gap:8px;align-items:center"><select class="btn btn-full" style="text-align:left" onchange="updatePropostaEstado(\''+p.id+'\',this.value)">'
+    +['Rascunho','Enviada','Aprovada','Perdida'].map((estado)=>'<option'+(estado===p.estado?' selected':'')+'>'+estado+'</option>').join('')
+    +'</select>'
+    +'<button class="btn" onclick="showClienteTimeline(\''+p.cliente_id+'\')">Ver timeline</button></div>';
+  document.getElementById('proposta-detail-body').innerHTML=html;
+  document.getElementById('mov-proposta-detail').classList.add('on');
+}
+
+function getClienteTimelineEntries(clienteId){
+  const entries=[];
+  D.visitas.filter((v)=>v.cliente_id===clienteId).forEach((v)=>entries.push({sortDate:v.data||v.created_at||'',type:'Visita',badge:tipoCls(v.tipo),title:v.tipo,meta:fmtDate(v.data),text:[getContactoNome(v.contacto_id),v.objetivo,v.proximo_passo].filter(Boolean).join(' · ')}));
+  D.opps.filter((o)=>o.cliente_id===clienteId).forEach((o)=>entries.push({sortDate:o.data_fecho||o.created_at||'',type:'Oportunidade',badge:'bbl',title:o.nome,meta:o.fase+(o.data_fecho?' · '+fmtDate(o.data_fecho):''),text:fmtEur(o.valor)}));
+  D.propostas.filter((p)=>p.cliente_id===clienteId).forEach((p)=>entries.push({sortDate:p.validade||p.created_at||'',type:'Proposta',badge:proposalStatusClass(p.estado),title:p.titulo,meta:p.estado+(p.validade?' · validade '+fmtDate(p.validade):''),text:fmtEur(p.total)}));
+  D.tarefas.filter((t)=>t.cliente_id===clienteId).forEach((t)=>entries.push({sortDate:t.data_limite||t.created_at||'',type:'Tarefa',badge:t.estado==='concluida'?'bbg':t.automatica?'bba':'bbo',title:t.descricao,meta:t.tipo+(t.data_limite?' · '+fmtDate(t.data_limite):''),text:t.notas||''}));
+  return entries.sort((a,b)=>String(b.sortDate).localeCompare(String(a.sortDate)));
+}
+
+function showClienteTimeline(clienteId){
+  const cliente=D.clientes.find((c)=>c.id===clienteId);if(!cliente)return;
+  const entries=getClienteTimelineEntries(clienteId);
+  document.getElementById('cliente-timeline-title').textContent='Timeline - '+cliente.nome;
+  const body=document.getElementById('cliente-timeline-body');
+  body.innerHTML='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">'
+    +dfld('Visitas',String(D.visitas.filter((v)=>v.cliente_id===clienteId).length))
+    +dfld('Oportunidades',String(D.opps.filter((o)=>o.cliente_id===clienteId).length))
+    +dfld('Propostas',String(D.propostas.filter((p)=>p.cliente_id===clienteId).length))
+    +dfld('Tarefas pendentes',String(D.tarefas.filter((t)=>t.cliente_id===clienteId&&t.estado==='pendente').length))
+    +'</div>'
+    +(entries.length?entries.map((entry)=>`<div class="irow" style="border:1px solid var(--b);border-radius:var(--r);padding:12px 14px"><div class="irow-top"><span class="badge ${entry.badge}">${entry.type}</span><span class="irow-name">${entry.title}</span><span style="font-size:11px;color:var(--t3)">${entry.meta}</span></div>${entry.text?`<div class="irow-sub" style="margin-top:6px">${entry.text}</div>`:''}</div>`).join(''):'<div class="empty"><p>Sem atividade ainda para este cliente.</p></div>');
+  document.getElementById('mov-cliente-timeline').classList.add('on');
+}
+
+function renderClientes(){
+  const q=(document.getElementById('sc')?.value||'').toLowerCase();
+  let list=!q?D.clientes:D.clientes.filter((c)=>c.nome.toLowerCase().includes(q)||(c.morada||'').toLowerCase().includes(q)||(c.setor||'').toLowerCase().includes(q));
+  list=sortList(list,'clientes');
+  const tb=document.getElementById('tb-clientes');
+  if(!list.length){tb.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-ico">O</div><p>Sem clientes ainda.</p><div class="empty-act"><button class="btn btn-p btn-sm" onclick="openModal('cliente')">+ Criar cliente</button></div></div></td></tr>`;return;}
+  tb.innerHTML=list.map((c)=>{
+    const nv=D.visitas.filter((v)=>v.cliente_id===c.id).length;
+    const no=D.opps.filter((o)=>o.cliente_id===c.id&&o.estado==='aberta').length;
+    return `<tr>
+      <td><strong>${c.nome}</strong></td>
+      <td><span class="badge bbgr">${c.setor||'-'}</span></td>
+      <td style="color:var(--t2)">${c.morada||'-'}</td>
+      <td>${nv}</td>
+      <td>${no>0?`<span class="badge bbl">${no}</span>`:'0'}</td>
+      <td>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="btn btn-sm" onclick="openModalWithCli('visita','${c.id}')">Visita</button>
+          <button class="btn btn-sm" onclick="openModalWithCli('opp','${c.id}')">Oport.</button>
+          <button class="btn btn-sm" onclick="openModalWithCli('proposta','${c.id}')">Prop.</button>
+          <button class="btn btn-sm" onclick="showClienteTimeline('${c.id}')">TL</button>
+          <button class="btn btn-sm" onclick="editCliente('${c.id}')">Editar</button>
+          <button class="btn btn-sm" onclick="openContactos('${c.id}','${esc(c.nome)}')">Contactos</button>
+          <button class="btn btn-sm btn-del" onclick="confirmDel('clientes','${c.id}','${esc(c.nome)}')">Apagar</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
 }
 
 
