@@ -553,7 +553,7 @@ let me=null, myId=null;
 let D={clientes:[],contactos:[],visitas:[],opps:[],tarefas:[],propostas:[],contactosById:{}};
 let tabT='pend', editingCtId=null, currentCtCliId=null, pendingCliCb=null;
 let loadToken=0;
-const newBtnLabels={home:'+ Registar visita',clientes:'+ Novo cliente',visitas:'+ Nova visita',opps:'+ Nova oportunidade',propostas:'+ Nova proposta',tarefas:'+ Nova tarefa'};
+const newBtnLabels={home:'+ Registar visita',clientes:'+ Novo cliente',visitas:'+ Nova visita',opps:'+ Nova oportunidade',tarefas:'+ Nova tarefa'};
 
 // ── THEME ──
 (function(){
@@ -633,13 +633,12 @@ async function loadAll(){
   const currentToken=++loadToken;
   setGlobalLoading(true);
   try{
-    const[c,ct,v,o,t,p]=await Promise.all([
+    const[c,ct,v,o,t]=await Promise.all([
       sb.from('clientes').select('*').eq('criado_por',myId).order('nome'),
       sb.from('contactos').select('*').order('nome'),
       sb.from('visitas').select('*').eq('criado_por',myId).order('data',{ascending:false}),
       sb.from('oportunidades').select('*').eq('criado_por',myId).order('created_at',{ascending:false}),
-      sb.from('tarefas').select('*').eq('criado_por',myId).order('data_limite'),
-      sb.from('propostas').select('*, proposta_itens(*)').eq('criado_por',myId).order('created_at',{ascending:false})
+      sb.from('tarefas').select('*').eq('criado_por',myId).order('data_limite')
     ]);
     if(currentToken!==loadToken) return;
     D.clientes=c.data||[];
@@ -647,14 +646,13 @@ async function loadAll(){
     D.visitas=v.data||[];
     D.opps=o.data||[];
     D.tarefas=t.data||[];
-    D.propostas=p.data||[];
     D.contactosById=createLookup(D.contactos);
     renderAll();
   }finally{
     if(currentToken===loadToken) setGlobalLoading(false);
   }
 }
-function renderAll(){renderStats();renderHome();renderClientes();renderVisitas();renderOpps();renderPropostas();renderTarefas();fillSelects();}
+function renderAll(){renderStats();renderHome();renderClientes();renderVisitas();renderOpps();renderTarefas();fillSelects();renderGlobalSearch();}
 
 // ── STATS ──
 function renderStats(){
@@ -1157,7 +1155,7 @@ function showOppDetail(id){
   document.getElementById('mov-opp-detail').classList.add('on');
 }
 
-bootstrapCommercialExtensions();
+// Propostas desativadas por enquanto.
 
 function bootstrapCommercialExtensions(){
   if(!document.getElementById('view-propostas')){
@@ -1505,34 +1503,276 @@ function showClienteTimeline(clienteId){
   document.getElementById('mov-cliente-timeline').classList.add('on');
 }
 
+let editingOppId=null;
+
+function bootstrapCommercialEnhancements(){
+  const homeUrg=document.getElementById('home-urg');
+  if(homeUrg && !document.getElementById('global-search')){
+    homeUrg.innerHTML=`
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-hd"><span class="card-title">Pesquisa Global</span></div>
+        <div style="padding:14px 18px">
+          <input type="search" id="global-search" placeholder="Pesquisar clientes, contactos, oportunidades e visitas..." oninput="renderGlobalSearch()">
+          <div id="global-search-results" style="margin-top:12px"></div>
+        </div>
+      </div>
+      <div id="agenda-grid"></div>`;
+  }
+
+  if(!document.getElementById('mov-cliente-timeline')){
+    document.body.insertAdjacentHTML('beforeend',`
+      <div class="mov" id="mov-cliente-timeline" onclick="e=>{if(e.target===e.currentTarget)closeModal('cliente-timeline')}">
+        <div class="modal" style="max-width:760px">
+          <div class="modal-hd"><span class="modal-title" id="cliente-timeline-title">Timeline do cliente</span><button class="modal-close" onclick="closeModal('cliente-timeline')">×</button></div>
+          <div class="modal-body" id="cliente-timeline-body" style="display:flex;flex-direction:column;gap:14px"></div>
+          <div class="modal-ft"><button class="btn btn-full" onclick="closeModal('cliente-timeline')">Fechar</button></div>
+        </div>
+      </div>`);
+  }
+
+  const oppTitle=document.querySelector('#mov-opp .modal-title');
+  if(oppTitle && !oppTitle.id) oppTitle.id='modal-opp-title';
+  if(!document.getElementById('opp-next-row')){
+    const notesField=document.getElementById('o-notas')?.parentElement;
+    if(notesField){
+      notesField.insertAdjacentHTML('beforebegin',`
+        <div class="fg2" id="opp-next-row">
+          <div class="fg"><label>Próxima ação</label><input type="text" id="o-next" autocomplete="off" placeholder="Ex: ligar ao cliente, enviar revisão..."></div>
+          <div class="fg"><label>Data da próxima ação</label><input type="date" id="o-next-date"></div>
+        </div>`);
+    }
+  }
+}
+
+function resetOppForm(){
+  editingOppId=null;
+  const title=document.getElementById('modal-opp-title');
+  if(title) title.textContent='Nova oportunidade';
+  const saveBtn=document.getElementById('o-save-btn');
+  if(saveBtn) saveBtn.textContent='Guardar';
+  ['o-nome','o-valor','o-prob','o-notas','o-fecho','o-next','o-next-date'].forEach((id)=>{const el=document.getElementById(id);if(el)el.value='';});
+  const phase=document.getElementById('o-fase');if(phase) phase.value='Prospeção';
+  const prob=document.getElementById('o-prob');if(prob) prob.value='50';
+}
+
+function openModal(type){
+  fillSelects();
+  const today=new Date().toISOString().split('T')[0];
+  if(type==='visita'){document.getElementById('v-data').value=today;resetWizard();}
+  if(type==='tarefa')document.getElementById('t-data').value=today;
+  if(type==='opp') resetOppForm();
+  if(type==='cliente'){
+    document.getElementById('modal-cli-title').textContent='Novo cliente';
+    document.getElementById('c-save-btn').onclick=saveCliente;
+    ['c-nome','c-tel','c-morada','c-notas'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('c-err').style.display='none';
+    document.getElementById('c-nome').style.borderColor='';
+  }
+  document.getElementById('mov-'+type).classList.add('on');
+}
+
+function renderHome(){
+  bootstrapCommercialEnhancements();
+  const todayIso=new Date().toISOString().split('T')[0];
+  const todayTasks=D.tarefas.filter((t)=>t.estado==='pendente'&&t.data_limite===todayIso);
+  const scheduledVisits=D.visitas.filter((v)=>(v.data||'')>=todayIso).slice(0,5);
+  const lateFollowUps=D.tarefas.filter((t)=>t.estado==='pendente'&&t.tipo==='Follow-up'&&(t.data_limite||'')<todayIso);
+  const oppsNoAction=D.opps.filter((o)=>o.estado==='aberta'&&!((o.proxima_acao||'').trim())&&!o.data_proxima_acao);
+
+  const agenda=document.getElementById('agenda-grid');
+  if(agenda){
+    agenda.innerHTML=`
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:16px">
+        ${agendaCard('Tarefas de hoje',todayTasks,(t)=>`${t.descricao}${t.cliente_nome?`<div class="irow-sub">${t.cliente_nome}</div>`:''}`)}
+        ${agendaCard('Visitas agendadas',scheduledVisits,(v)=>`${v.cliente_nome}<div class="irow-sub">${fmtDate(v.data)}${v.objetivo?` · ${v.objetivo}`:''}</div>`)}
+        ${agendaCard('Follow-ups em atraso',lateFollowUps,(t)=>`${t.descricao}<div class="irow-sub">${t.cliente_nome||''}${t.data_limite?` · ${fmtDate(t.data_limite)}`:''}</div>`)}
+        ${agendaCard('Oportunidades sem próxima ação',oppsNoAction,(o)=>`${o.nome}<div class="irow-sub">${o.cliente_nome} · ${fmtEur(o.valor)}</div>`)}
+      </div>`;
+  }
+
+  const uv=D.visitas.slice(0,4);
+  document.getElementById('home-vis').innerHTML=uv.length===0?'<div class="empty"><p>Sem visitas registadas ainda.</p></div>':
+    uv.map(v=>`<div class="irow"><div class="irow-top"><span class="irow-name">${v.cliente_nome}</span><span class="badge ${tipoCls(v.tipo)}">${v.tipo}</span></div><div class="irow-sub">${fmtDate(v.data)}${v.objetivo?' · '+v.objetivo:''}</div></div>`).join('');
+
+  const t2=new Date();t2.setHours(0,0,0,0);
+  const soon=D.opps.filter(o=>o.estado==='aberta'&&o.data_fecho).sort((a,b)=>a.data_fecho.localeCompare(b.data_fecho)).slice(0,4);
+  document.getElementById('home-close').innerHTML=soon.length===0?'<div class="empty"><p>Sem datas de fecho definidas</p></div>':
+    soon.map(o=>{const d=Math.ceil((new Date(o.data_fecho)-t2)/86400000);const cls=d<=0?'bbr':d<=7?'bbo':'bba';
+      return`<div class="irow"><div class="irow-top"><span class="irow-name">${o.nome}</span><span class="badge ${cls}">${d<=0?'Hoje':d===1?'Amanhã':d+'d'}</span></div><div class="irow-sub">${o.cliente_nome} · ${fmtEur(o.valor)}</div></div>`;
+    }).join('');
+
+  renderGlobalSearch();
+}
+
+function agendaCard(title,list,renderer){
+  return `<div class="card" style="margin-bottom:0">
+    <div class="card-hd"><span class="card-title">${title}</span><span class="badge ${list.length?'bbo':'bbgr'}">${list.length}</span></div>
+    <div>${list.length?list.slice(0,5).map((item)=>`<div class="irow">${renderer(item)}</div>`).join(''):'<div class="empty" style="padding:24px 18px"><p>Sem itens.</p></div>'}</div>
+  </div>`;
+}
+
+function renderGlobalSearch(){
+  const out=document.getElementById('global-search-results');
+  const q=(document.getElementById('global-search')?.value||'').trim().toLowerCase();
+  if(!out) return;
+  if(!q){out.innerHTML='<div class="empty" style="padding:18px 8px"><p>Escreve para pesquisar em todo o CRM.</p></div>';return;}
+
+  const results=[
+    ...D.clientes.filter((c)=>c.nome.toLowerCase().includes(q)||(c.morada||'').toLowerCase().includes(q)).slice(0,5).map((c)=>({type:'Cliente',title:c.nome,meta:c.morada||c.setor||'',action:`showClienteTimeline('${c.id}')`})),
+    ...D.contactos.filter((c)=>c.nome.toLowerCase().includes(q)||(c.cargo||'').toLowerCase().includes(q)||(c.tel||'').toLowerCase().includes(q)).slice(0,5).map((c)=>({type:'Contacto',title:c.nome,meta:[c.cargo,c.tel].filter(Boolean).join(' · '),action:`showClienteTimeline('${c.cliente_id}')`})),
+    ...D.opps.filter((o)=>o.nome.toLowerCase().includes(q)||(o.cliente_nome||'').toLowerCase().includes(q)).slice(0,5).map((o)=>({type:'Oportunidade',title:o.nome,meta:[o.cliente_nome,o.fase].filter(Boolean).join(' · '),action:`showOppDetail('${o.id}')`})),
+    ...D.visitas.filter((v)=>(v.cliente_nome||'').toLowerCase().includes(q)||(v.objetivo||'').toLowerCase().includes(q)||(getContactoNome(v.contacto_id)||'').toLowerCase().includes(q)).slice(0,5).map((v)=>({type:'Visita',title:v.cliente_nome,meta:[fmtDate(v.data),v.objetivo].filter(Boolean).join(' · '),action:`showVisitaDetail('${v.id}')`}))
+  ];
+
+  out.innerHTML=results.length?results.map((r)=>`
+    <div class="irow" style="cursor:pointer" onclick="${r.action}">
+      <div class="irow-top"><span class="badge bbgr">${r.type}</span><span class="irow-name">${r.title}</span></div>
+      ${r.meta?`<div class="irow-sub">${r.meta}</div>`:''}
+    </div>`).join(''):'<div class="empty" style="padding:18px 8px"><p>Sem resultados.</p></div>';
+}
+
 function renderClientes(){
   const q=(document.getElementById('sc')?.value||'').toLowerCase();
   let list=!q?D.clientes:D.clientes.filter((c)=>c.nome.toLowerCase().includes(q)||(c.morada||'').toLowerCase().includes(q)||(c.setor||'').toLowerCase().includes(q));
   list=sortList(list,'clientes');
   const tb=document.getElementById('tb-clientes');
-  if(!list.length){tb.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-ico">O</div><p>Sem clientes ainda.</p><div class="empty-act"><button class="btn btn-p btn-sm" onclick="openModal('cliente')">+ Criar cliente</button></div></div></td></tr>`;return;}
+  if(!list.length){tb.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-ico">◉</div><p>Sem clientes ainda.</p><div class="empty-act"><button class="btn btn-p btn-sm" onclick="openModal('cliente')">+ Criar cliente</button></div></div></td></tr>`;return;}
   tb.innerHTML=list.map((c)=>{
     const nv=D.visitas.filter((v)=>v.cliente_id===c.id).length;
     const no=D.opps.filter((o)=>o.cliente_id===c.id&&o.estado==='aberta').length;
     return `<tr>
       <td><strong>${c.nome}</strong></td>
-      <td><span class="badge bbgr">${c.setor||'-'}</span></td>
-      <td style="color:var(--t2)">${c.morada||'-'}</td>
+      <td><span class="badge bbgr">${c.setor||'—'}</span></td>
+      <td style="color:var(--t2)">${c.morada||'—'}</td>
       <td>${nv}</td>
       <td>${no>0?`<span class="badge bbl">${no}</span>`:'0'}</td>
       <td>
         <div style="display:flex;gap:4px;flex-wrap:wrap">
-          <button class="btn btn-sm" onclick="openModalWithCli('visita','${c.id}')">Visita</button>
-          <button class="btn btn-sm" onclick="openModalWithCli('opp','${c.id}')">Oport.</button>
-          <button class="btn btn-sm" onclick="openModalWithCli('proposta','${c.id}')">Prop.</button>
+          <button class="btn btn-sm" onclick="openModalWithCli('visita','${c.id}')">📍</button>
+          <button class="btn btn-sm" onclick="openModalWithCli('opp','${c.id}')">◇</button>
           <button class="btn btn-sm" onclick="showClienteTimeline('${c.id}')">TL</button>
-          <button class="btn btn-sm" onclick="editCliente('${c.id}')">Editar</button>
-          <button class="btn btn-sm" onclick="openContactos('${c.id}','${esc(c.nome)}')">Contactos</button>
-          <button class="btn btn-sm btn-del" onclick="confirmDel('clientes','${c.id}','${esc(c.nome)}')">Apagar</button>
+          <button class="btn btn-sm" onclick="editCliente('${c.id}')">✎</button>
+          <button class="btn btn-sm" onclick="openContactos('${c.id}','${esc(c.nome)}')">👤</button>
+          <button class="btn btn-sm btn-del" onclick="confirmDel('clientes','${c.id}','${esc(c.nome)}')">✕</button>
         </div>
       </td>
     </tr>`;
   }).join('');
+}
+
+function renderOpps(){
+  const tb=document.getElementById('tb-opps');
+  const list=sortList([...D.opps],'opps');
+  if(!list.length){tb.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-ico">◇</div><p>Sem oportunidades.</p><div class="empty-act"><button class="btn btn-p btn-sm" onclick="openModal('opp')">+ Nova oportunidade</button></div></div></td></tr>`;return;}
+  const fm={Prospeção:'bbgr',Qualificação:'bbl',Proposta:'bbo',Negociação:'bbp','Fechado — Ganho':'bbg','Fechado — Perdido':'bbr'};
+  const today=new Date();today.setHours(0,0,0,0);
+  tb.innerHTML=list.map((o)=>{
+    const d=o.data_fecho?Math.ceil((new Date(o.data_fecho)-today)/86400000):null;
+    return`<tr>
+      <td style="cursor:pointer" onclick="showOppDetail('${o.id}')"><strong>${o.nome}</strong><div style="font-size:11px;color:var(--t3)">${o.cliente_nome}</div><div style="font-size:11px;color:var(--t3)">${o.proxima_acao||'Sem próxima ação'}</div></td>
+      <td><span class="badge ${fm[o.fase]||'bbgr'}">${o.fase}</span></td>
+      <td style="font-family:monospace">${fmtEur(o.valor)}</td>
+      <td><div style="display:flex;align-items:center;gap:6px"><div class="prog" style="width:44px"><div class="prog-fill" style="width:${o.probabilidade||0}%"></div></div><span style="font-size:11px;color:var(--t3)">${o.probabilidade||0}%</span></div></td>
+      <td>${d!==null?`<span class="badge ${d<=0?'bbr':d<=7?'bbo':'bbgr'}">${d===0?'Hoje':d<0?'Expirado':d+'d'}</span>`:'—'}</td>
+      <td><button class="btn btn-sm" onclick="editOpp('${o.id}')">Editar</button></td>
+      <td><span style="font-size:11px;color:var(--bl);font-weight:600;cursor:pointer" onclick="showOppDetail('${o.id}')">Ver →</span></td>
+    </tr>`;
+  }).join('');
+}
+
+async function saveOpp(){
+  const nome=document.getElementById('o-nome').value.trim(),cid=document.getElementById('o-cliente').value;
+  if(!nome||!cid){toast('Nome e cliente obrigatórios','err');return;}
+  const btn=document.getElementById('o-save-btn');btn.innerHTML='<span class="spin"></span>';btn.disabled=true;
+  const cliente=D.clientes.find(c=>c.id===cid);
+  const fase=document.getElementById('o-fase').value;
+  const estado=fase.includes('Ganho')?'ganha':fase.includes('Perdido')?'perdida':'aberta';
+  const payload={
+    nome,cliente_id:cid,cliente_nome:cliente?.nome||'',
+    valor:parseFloat(document.getElementById('o-valor').value)||0,
+    probabilidade:parseInt(document.getElementById('o-prob').value)||50,
+    fase,
+    data_fecho:document.getElementById('o-fecho').value||null,
+    proxima_acao:document.getElementById('o-next')?.value||'',
+    data_proxima_acao:document.getElementById('o-next-date')?.value||null,
+    notas:document.getElementById('o-notas').value,
+    estado,
+    criado_por:myId
+  };
+  const query=editingOppId?sb.from('oportunidades').update(payload).eq('id',editingOppId):sb.from('oportunidades').insert(payload);
+  const {error}=await query;
+  btn.innerHTML='Guardar';btn.disabled=false;
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast(editingOppId?'Oportunidade atualizada!':'Oportunidade criada!','ok');
+  resetOppForm();
+  closeModal('opp');
+  await loadAll();
+}
+
+function editOpp(id){
+  const o=D.opps.find((x)=>x.id===id);if(!o)return;
+  editingOppId=id;
+  const title=document.getElementById('modal-opp-title');
+  if(title) title.textContent='Atualizar oportunidade';
+  document.getElementById('o-save-btn').textContent='Atualizar';
+  document.getElementById('o-nome').value=o.nome||'';
+  document.getElementById('o-cliente').value=o.cliente_id||'';
+  document.getElementById('o-valor').value=o.valor||0;
+  document.getElementById('o-prob').value=o.probabilidade||50;
+  document.getElementById('o-fase').value=o.fase||'Prospeção';
+  document.getElementById('o-fecho').value=o.data_fecho||'';
+  if(document.getElementById('o-next')) document.getElementById('o-next').value=o.proxima_acao||'';
+  if(document.getElementById('o-next-date')) document.getElementById('o-next-date').value=o.data_proxima_acao||'';
+  document.getElementById('o-notas').value=o.notas||'';
+  document.getElementById('mov-opp').classList.add('on');
+}
+
+function getClienteTimelineEntries(clienteId){
+  const entries=[];
+  D.visitas.filter((v)=>v.cliente_id===clienteId).forEach((v)=>entries.push({sortDate:v.data||v.created_at||'',type:'Visita',badge:tipoCls(v.tipo),title:v.tipo,meta:fmtDate(v.data),text:[getContactoNome(v.contacto_id),v.objetivo,v.proximo_passo].filter(Boolean).join(' · ')}));
+  D.opps.filter((o)=>o.cliente_id===clienteId).forEach((o)=>entries.push({sortDate:o.data_proxima_acao||o.data_fecho||o.created_at||'',type:'Oportunidade',badge:'bbl',title:o.nome,meta:[o.fase,o.data_proxima_acao?fmtDate(o.data_proxima_acao):null].filter(Boolean).join(' · '),text:[fmtEur(o.valor),o.proxima_acao].filter(Boolean).join(' · ')}));
+  D.tarefas.filter((t)=>t.cliente_id===clienteId).forEach((t)=>entries.push({sortDate:t.data_limite||t.created_at||'',type:'Tarefa',badge:t.estado==='concluida'?'bbg':t.automatica?'bba':'bbo',title:t.descricao,meta:t.tipo+(t.data_limite?' · '+fmtDate(t.data_limite):''),text:t.notas||''}));
+  return entries.sort((a,b)=>String(b.sortDate).localeCompare(String(a.sortDate)));
+}
+
+function showClienteTimeline(clienteId){
+  const cliente=D.clientes.find((c)=>c.id===clienteId);if(!cliente)return;
+  const entries=getClienteTimelineEntries(clienteId);
+  document.getElementById('cliente-timeline-title').textContent='Timeline - '+cliente.nome;
+  const body=document.getElementById('cliente-timeline-body');
+  body.innerHTML='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">'
+    +dfld('Visitas',String(D.visitas.filter((v)=>v.cliente_id===clienteId).length))
+    +dfld('Oportunidades',String(D.opps.filter((o)=>o.cliente_id===clienteId).length))
+    +dfld('Tarefas pendentes',String(D.tarefas.filter((t)=>t.cliente_id===clienteId&&t.estado==='pendente').length))
+    +'</div>'
+    +(entries.length?entries.map((entry)=>`<div class="irow" style="border:1px solid var(--b);border-radius:var(--r);padding:12px 14px"><div class="irow-top"><span class="badge ${entry.badge}">${entry.type}</span><span class="irow-name">${entry.title}</span><span style="font-size:11px;color:var(--t3)">${entry.meta}</span></div>${entry.text?`<div class="irow-sub" style="margin-top:6px">${entry.text}</div>`:''}</div>`).join(''):'<div class="empty"><p>Sem atividade ainda para este cliente.</p></div>');
+  document.getElementById('mov-cliente-timeline').classList.add('on');
+}
+
+function showOppDetail(id){
+  const o=D.opps.find(x=>x.id===id);if(!o)return;
+  const fm={Prospeção:'bbgr',Qualificação:'bbl',Proposta:'bbo',Negociação:'bbp','Fechado — Ganho':'bbg','Fechado — Perdido':'bbr'};
+  const today=new Date();today.setHours(0,0,0,0);
+  const d=o.data_fecho?Math.ceil((new Date(o.data_fecho)-today)/86400000):null;
+  const body=document.getElementById('opp-detail-body');
+  let html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    +dfld('Oportunidade','<strong>'+o.nome+'</strong>')
+    +dfld('Cliente',o.cliente_nome)
+    +dfld('Fase','<span class="badge '+(fm[o.fase]||'bbgr')+'">'+o.fase+'</span>')
+    +dfld('Valor','<strong style="font-family:monospace;font-size:15px">'+fmtEur(o.valor)+'</strong>')
+    +'</div>';
+  html+=dfld('Probabilidade','<div style="display:flex;align-items:center;gap:10px;margin-top:2px"><div style="flex:1;height:6px;background:var(--s3);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+(o.probabilidade||0)+'%;background:var(--bl);border-radius:3px"></div></div><strong>'+(o.probabilidade||0)+'%</strong></div>');
+  if(o.data_fecho){
+    const dc=d!==null&&d<=7?'bbr':d!==null&&d<=30?'bbo':'bbgr';
+    const dl=d===null?'':' <span style="color:var(--t3);font-size:11px">'+(d===0?'(hoje)':d<0?'(expirado)':'('+d+'d)')+'</span>';
+    html+=dfld('Fecho previsto','<span class="badge '+dc+'">'+fmtDate(o.data_fecho)+'</span>'+dl);
+  }
+  html+=dfld('Próxima ação',o.proxima_acao||'Sem próxima ação definida');
+  if(o.data_proxima_acao) html+=dfld('Data próxima ação',fmtDate(o.data_proxima_acao));
+  if(o.notas) html+=dfld('Notas',o.notas);
+  html+='<div style="display:flex;gap:8px;align-items:center"><button class="btn" onclick="editOpp(\''+o.id+'\');closeModal(\'opp-detail\')">Editar oportunidade</button><button class="btn" onclick="showClienteTimeline(\''+o.cliente_id+'\');closeModal(\'opp-detail\')">Timeline cliente</button></div>';
+  body.innerHTML=html;
+  document.getElementById('mov-opp-detail').classList.add('on');
 }
 
 

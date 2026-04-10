@@ -59,6 +59,8 @@ create table if not exists public.oportunidades (
   probabilidade integer not null default 50,
   fase text not null default 'Prospeccao',
   data_fecho date,
+  proxima_acao text,
+  data_proxima_acao date,
   notas text,
   estado text not null default 'aberta',
   criado_por uuid references public.profiles(id) on delete set null,
@@ -136,6 +138,10 @@ alter table public.oportunidades
   alter column valor set default 0,
   alter column probabilidade set default 50,
   alter column estado set default 'aberta';
+
+alter table public.oportunidades
+  add column if not exists proxima_acao text,
+  add column if not exists data_proxima_acao date;
 
 alter table public.tarefas
   alter column tipo set default 'Follow-up',
@@ -295,6 +301,7 @@ create index if not exists idx_oportunidades_criado_por_estado on public.oportun
 create index if not exists idx_oportunidades_cliente_id on public.oportunidades(cliente_id);
 create index if not exists idx_oportunidades_data_fecho on public.oportunidades(data_fecho);
 create index if not exists idx_oportunidades_abertas_fecho on public.oportunidades(criado_por, data_fecho) where estado = 'aberta';
+create index if not exists idx_oportunidades_abertas_proxima_acao on public.oportunidades(criado_por, data_proxima_acao) where estado = 'aberta';
 create index if not exists idx_tarefas_criado_por_estado_data on public.tarefas(criado_por, estado, data_limite);
 create index if not exists idx_tarefas_cliente_id on public.tarefas(cliente_id);
 create index if not exists idx_tarefas_pendentes_data on public.tarefas(criado_por, data_limite) where estado = 'pendente';
