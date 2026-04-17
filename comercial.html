@@ -670,7 +670,7 @@ function renderStats(){
 }
 
 // ── HOME ──
-function renderHome(){
+function legacyRenderHomeBase(){
   const today=new Date();today.setHours(0,0,0,0);
   const urg=D.tarefas.filter(t=>t.estado==='pendente'&&new Date(t.data_limite)<=today);
   document.getElementById('home-urg').innerHTML=urg.map(t=>`
@@ -693,7 +693,7 @@ function renderHome(){
 }
 
 // ── CLIENTES ──
-function renderClientes(){
+function legacyRenderClientesBase(){
   const q=(document.getElementById('sc')?.value||'').toLowerCase();
   let list=D.clientes.filter(c=>!q||c.nome.toLowerCase().includes(q)||(c.morada||'').toLowerCase().includes(c.nome.toLowerCase().includes(q)?c.nome:''));
   if(!q) list=D.clientes;
@@ -739,7 +739,7 @@ function renderVisitas(){
 }
 
 // ── OPPS ──
-function renderOpps(){
+function legacyRenderOppsBase(){
   const tb=document.getElementById('tb-opps');
   const list=sortList([...D.opps],'opps');
   if(!list.length){tb.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-ico">◇</div><p>Sem oportunidades.</p><div class="empty-act"><button class="btn btn-p btn-sm" onclick="openModal('opp')">+ Nova oportunidade</button></div></div></td></tr>`;return;}
@@ -770,7 +770,7 @@ function renderOpps(){
 
 // ── TAREFAS ──
 function setTab(tab,el){tabT=tab;document.querySelectorAll('[data-tab]').forEach(b=>b.classList.remove('on'));el.classList.add('on');renderTarefas();}
-function renderTarefas(){
+function legacyRenderTarefasBase(){
   const today=new Date();today.setHours(0,0,0,0);
   const list=D.tarefas.filter(t=>tabT==='pend'?t.estado==='pendente':t.estado==='concluida');
   const el=document.getElementById('tb-tarefas');
@@ -820,7 +820,7 @@ function handleNewBtn(){
 }
 
 // ── MODAL ──
-function openModal(type){
+function legacyOpenModalBase(type){
   fillSelects();
   const today=new Date().toISOString().split('T')[0];
   if(type==='visita'){document.getElementById('v-data').value=today;resetWizard();}
@@ -926,7 +926,7 @@ async function updateCliente(id){
   toast('Cliente atualizado!','ok');closeModal('cliente');await loadAll();
 }
 
-async function saveVisita(){
+async function legacySaveVisitaBase(){
   const btn=document.getElementById('v-save');btn.innerHTML='<span class="spin"></span>';btn.disabled=true;
   const cid=document.getElementById('v-cliente').value;
   const cliente=D.clientes.find(c=>c.id===cid);
@@ -949,7 +949,7 @@ async function saveVisita(){
   if(copp==='sim')setTimeout(()=>openModalWithCli('opp',cid),350);
 }
 
-async function saveOpp(){
+async function legacySaveOppBase(){
   const nome=document.getElementById('o-nome').value.trim(),cid=document.getElementById('o-cliente').value;
   if(!nome||!cid){toast('Nome e cliente obrigatórios','err');return;}
   const btn=document.getElementById('o-save-btn');btn.innerHTML='<span class="spin"></span>';btn.disabled=true;
@@ -1128,7 +1128,7 @@ function showVisitaDetail(id){
   document.getElementById('mov-visita-detail').classList.add('on');
 }
 
-function showOppDetail(id){
+function legacyShowOppDetailBase(id){
   const o=D.opps.find(x=>x.id===id);if(!o)return;
   const fm={Prospeção:'bbgr',Qualificação:'bbl',Proposta:'bbo',Negociação:'bbp','Fechado — Ganho':'bbg','Fechado — Perdido':'bbr'};
   const today=new Date();today.setHours(0,0,0,0);
@@ -1257,7 +1257,7 @@ function handleNewBtn(){
   openModal(map[view]||'visita');
 }
 
-function openModal(type){
+function legacyOpenModalExtensions(type){
   fillSelects();
   const today=new Date().toISOString().split('T')[0];
   if(type==='visita'){document.getElementById('v-data').value=today;resetWizard();}
@@ -1571,7 +1571,7 @@ function openModal(type){
   document.getElementById('mov-'+type).classList.add('on');
 }
 
-function renderHome(){
+function legacyRenderHomeExtensions(){
   bootstrapCommercialEnhancements();
   const todayIso=new Date().toISOString().split('T')[0];
   const todayTasks=D.tarefas.filter((t)=>t.estado==='pendente'&&t.data_limite===todayIso);
@@ -1660,7 +1660,7 @@ function renderClientes(){
   }).join('');
 }
 
-function renderOpps(){
+function legacyRenderOppsExtensions(){
   const tb=document.getElementById('tb-opps');
   const list=sortList([...D.opps],'opps');
   if(!list.length){tb.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-ico">◇</div><p>Sem oportunidades.</p><div class="empty-act"><button class="btn btn-p btn-sm" onclick="openModal('opp')">+ Nova oportunidade</button></div></div></td></tr>`;return;}
@@ -1680,7 +1680,7 @@ function renderOpps(){
   }).join('');
 }
 
-async function saveOpp(){
+async function legacySaveOppExtensions(){
   const nome=document.getElementById('o-nome').value.trim(),cid=document.getElementById('o-cliente').value;
   if(!nome||!cid){toast('Nome e cliente obrigatórios','err');return;}
   const btn=document.getElementById('o-save-btn');btn.innerHTML='<span class="spin"></span>';btn.disabled=true;
@@ -1709,7 +1709,7 @@ async function saveOpp(){
   await loadAll();
 }
 
-function editOpp(id){
+function legacyEditOppExtensions(id){
   const o=D.opps.find((x)=>x.id===id);if(!o)return;
   editingOppId=id;
   const title=document.getElementById('modal-opp-title');
@@ -1749,7 +1749,7 @@ function showClienteTimeline(clienteId){
   document.getElementById('mov-cliente-timeline').classList.add('on');
 }
 
-function showOppDetail(id){
+function legacyShowOppDetailExtensions(id){
   const o=D.opps.find(x=>x.id===id);if(!o)return;
   const fm={Prospeção:'bbgr',Qualificação:'bbl',Proposta:'bbo',Negociação:'bbp','Fechado — Ganho':'bbg','Fechado — Perdido':'bbr'};
   const today=new Date();today.setHours(0,0,0,0);
@@ -1775,7 +1775,369 @@ function showOppDetail(id){
   document.getElementById('mov-opp-detail').classList.add('on');
 }
 
+const commercialCrm = {
+  phaseBadge(fase){
+    const value=String(fase||'').toLowerCase();
+    if(value.includes('ganh')) return 'bbg';
+    if(value.includes('perd')) return 'bbr';
+    if(value.includes('negoc')) return 'bbp';
+    if(value.includes('propost')) return 'bbo';
+    if(value.includes('qualif')) return 'bbl';
+    return 'bbgr';
+  },
+  getConfig(){
+    D.config=window.FlexborShared.normalizeCrmConfig(D.config);
+    return D.config;
+  },
+  phases(){
+    return this.getConfig().pipeline_fases;
+  },
+  daysUntil(dateValue){
+    if(!dateValue) return null;
+    const today=new Date();
+    today.setHours(0,0,0,0);
+    return Math.ceil((new Date(dateValue)-today)/86400000);
+  },
+  getOppLastActivity(opp){
+    const candidates=[opp.ultima_atividade_em,opp.data_proxima_acao,opp.created_at&&String(opp.created_at).slice(0,10)];
+    D.visitas.forEach((v)=>{if(v.cliente_id===opp.cliente_id)candidates.push(v.data||String(v.created_at||'').slice(0,10));});
+    D.tarefas.forEach((t)=>{if(t.cliente_id===opp.cliente_id)candidates.push(t.updated_at&&String(t.updated_at).slice(0,10),t.created_at&&String(t.created_at).slice(0,10),t.data_limite);});
+    return candidates.filter(Boolean).sort().pop()||null;
+  },
+  getClienteLastContact(clienteId){
+    const dates=D.visitas.filter((v)=>v.cliente_id===clienteId).map((v)=>v.data||String(v.created_at||'').slice(0,10)).filter(Boolean);
+    return dates.sort().pop()||null;
+  },
+  parseTags(value){
+    return String(value||'').split(',').map((item)=>item.trim()).filter(Boolean);
+  },
+  formatTags(value){
+    return Array.isArray(value)?value.join(', '):'';
+  },
+  renderCustomFields(values){
+    const wrap=document.getElementById('opp-custom-fields');
+    if(!wrap) return;
+    const labels=this.getConfig().campos_customizados;
+    if(!labels.length){
+      wrap.innerHTML='';
+      wrap.style.display='none';
+      return;
+    }
+    const data=values&&typeof values==='object'?values:{};
+    wrap.style.display='';
+    wrap.innerHTML=labels.map((label)=>`<div class="fg"><label>${label}</label><input type="text" data-custom-field="${label}" value="${esc(data[label]||'')}" autocomplete="off"></div>`).join('');
+  },
+  readCustomFields(){
+    const values={};
+    document.querySelectorAll('[data-custom-field]').forEach((input)=>{
+      const label=input.getAttribute('data-custom-field');
+      const value=input.value.trim();
+      if(label&&value) values[label]=value;
+    });
+    return values;
+  },
+  ensureUi(){
+    bootstrapCommercialEnhancements();
+    const phaseEl=document.getElementById('o-fase');
+    if(phaseEl){
+      const current=phaseEl.value;
+      phaseEl.innerHTML=this.phases().map((fase)=>`<option value="${fase}">${fase}</option>`).join('');
+      phaseEl.value=this.phases().includes(current)?current:this.phases()[0];
+    }
+    if(!document.getElementById('opp-automation-row')){
+      const notesField=document.getElementById('o-notas')?.parentElement;
+      if(notesField){
+        notesField.insertAdjacentHTML('beforebegin',`
+          <div class="fg2" id="opp-automation-row">
+            <div class="fg"><label>Prioridade</label><select id="o-priority"><option value="baixa">Baixa</option><option value="media">Media</option><option value="alta">Alta</option><option value="critica">Critica</option></select></div>
+            <div class="fg"><label>Tags</label><input type="text" id="o-tags" autocomplete="off" placeholder="ex: urgente, renovacao"></div>
+          </div>
+          <div class="fg" id="opp-reason-wrap">
+            <label>Razao de fecho</label>
+            <select id="o-reason"><option value="">Sem razao</option></select>
+          </div>
+          <div class="fg2" id="opp-custom-fields" style="display:none"></div>`);
+      }
+    }
+    const reasonEl=document.getElementById('o-reason');
+    if(reasonEl){
+      const fase=(document.getElementById('o-fase')?.value||'');
+      const estado=window.FlexborShared.deriveOpportunityState(fase);
+      const cfg=this.getConfig();
+      const options=estado==='ganha'?cfg.motivos_ganho:cfg.motivos_perda;
+      const current=reasonEl.value;
+      reasonEl.innerHTML=`<option value="">Sem razao</option>`+options.map((item)=>`<option value="${item}">${item}</option>`).join('');
+      reasonEl.value=options.includes(current)?current:'';
+      const reasonWrap=document.getElementById('opp-reason-wrap');
+      if(reasonWrap) reasonWrap.style.display=estado==='aberta'?'none':'';
+    }
+    this.renderCustomFields();
+  }
+};
 
+D.config=window.FlexborShared.getDefaultCrmConfig();
+
+async function loadAll(){
+  const currentToken=++loadToken;
+  setGlobalLoading(true);
+  try{
+    const[c,ct,v,o,t,cfg]=await Promise.all([
+      sb.from('clientes').select('*').eq('criado_por',myId).order('nome'),
+      sb.from('contactos').select('*').order('nome'),
+      sb.from('visitas').select('*').eq('criado_por',myId).order('data',{ascending:false}),
+      sb.from('oportunidades').select('*').eq('criado_por',myId).order('created_at',{ascending:false}),
+      sb.from('tarefas').select('*').eq('criado_por',myId).order('data_limite'),
+      sb.from('crm_configuracao').select('*').limit(1).maybeSingle()
+    ]);
+    if(currentToken!==loadToken) return;
+    D.clientes=c.data||[];
+    D.contactos=ct.data||[];
+    D.visitas=v.data||[];
+    D.opps=o.data||[];
+    D.tarefas=t.data||[];
+    D.config=window.FlexborShared.normalizeCrmConfig(cfg.data);
+    D.contactosById=createLookup(D.contactos);
+    renderAll();
+  }finally{
+    if(currentToken===loadToken) setGlobalLoading(false);
+  }
+}
+
+function resetOppForm(){
+  editingOppId=null;
+  commercialCrm.ensureUi();
+  const title=document.getElementById('modal-opp-title');
+  if(title) title.textContent='Nova oportunidade';
+  const saveBtn=document.getElementById('o-save-btn');
+  if(saveBtn) saveBtn.textContent='Guardar';
+  ['o-nome','o-valor','o-prob','o-notas','o-fecho','o-next','o-next-date','o-tags'].forEach((id)=>{const el=document.getElementById(id);if(el)el.value='';});
+  const phase=document.getElementById('o-fase');if(phase) phase.value=commercialCrm.phases()[0]||'Prospeccao';
+  const prob=document.getElementById('o-prob');if(prob) prob.value='50';
+  const priority=document.getElementById('o-priority');if(priority) priority.value='media';
+  const reason=document.getElementById('o-reason');if(reason) reason.value='';
+  commercialCrm.renderCustomFields({});
+}
+
+async function saveVisita(){
+  const btn=document.getElementById('v-save');btn.innerHTML='<span class="spin"></span>';btn.disabled=true;
+  const cid=document.getElementById('v-cliente').value;
+  const cliente=D.clientes.find((c)=>c.id===cid);
+  const fu=document.getElementById('v-fu').value;
+  let followUpEm=null;
+  if(fu){
+    const dt=new Date();
+    dt.setDate(dt.getDate()+parseInt(fu,10));
+    followUpEm=dt.toISOString().split('T')[0];
+  }
+  const {error}=await sb.from('visitas').insert({
+    data:document.getElementById('v-data').value,
+    tipo:document.getElementById('v-tipo').value,
+    cliente_id:cid,
+    cliente_nome:cliente?.nome||'',
+    objetivo:document.getElementById('v-obj').value,
+    notas:document.getElementById('v-notas').value,
+    proximo_passo:document.getElementById('v-prox').value,
+    follow_up_em:followUpEm,
+    contacto_id:document.getElementById('v-contacto').value||null,
+    criado_por:myId
+  });
+  btn.innerHTML='Guardar visita ✓';btn.disabled=false;
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast('Visita registada!','ok');
+  closeModal('visita');
+  await loadAll();
+  if(document.getElementById('v-copp').value==='sim') setTimeout(()=>openModalWithCli('opp',cid),350);
+}
+
+function renderHome(){
+  commercialCrm.ensureUi();
+  const rules=commercialCrm.getConfig().regras;
+  const todayIso=new Date().toISOString().split('T')[0];
+  const todayTasks=D.tarefas.filter((t)=>t.estado==='pendente'&&t.data_limite===todayIso);
+  const scheduledVisits=D.visitas.filter((v)=>(v.data||'')>=todayIso).slice(0,5);
+  const lateFollowUps=D.tarefas.filter((t)=>t.estado==='pendente'&&String(t.data_limite||'')<todayIso);
+  const oppsNoAction=D.opps.filter((o)=>o.estado==='aberta'&&!((o.proxima_acao||'').trim())&&!o.data_proxima_acao);
+  const riskyOpps=D.opps.filter((o)=>{
+    if(o.estado!=='aberta') return false;
+    const last=commercialCrm.getOppLastActivity(o);
+    if(!last) return true;
+    return commercialCrm.daysUntil(last)<=-rules.oportunidade_sem_atividade_dias;
+  });
+  const staleClients=D.clientes.filter((c)=>{
+    const last=commercialCrm.getClienteLastContact(c.id);
+    if(!last) return true;
+    return commercialCrm.daysUntil(last)<=-rules.cliente_sem_contacto_dias;
+  });
+
+  const agenda=document.getElementById('agenda-grid');
+  if(agenda){
+    agenda.innerHTML=`
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:16px">
+        ${agendaCard('Tarefas de hoje',todayTasks,(t)=>`${t.descricao}${t.cliente_nome?`<div class="irow-sub">${t.cliente_nome}</div>`:''}`)}
+        ${agendaCard('Visitas agendadas',scheduledVisits,(v)=>`${v.cliente_nome}<div class="irow-sub">${fmtDate(v.data)}${v.objetivo?` · ${v.objetivo}`:''}</div>`)}
+        ${agendaCard('Follow-ups em atraso',lateFollowUps,(t)=>`${t.descricao}<div class="irow-sub">${t.cliente_nome||''}${t.data_limite?` · ${fmtDate(t.data_limite)}`:''}</div>`)}
+        ${agendaCard('Oportunidades sem proxima acao',oppsNoAction,(o)=>`${o.nome}<div class="irow-sub">${o.cliente_nome} · ${fmtEur(o.valor)}</div>`)}
+        ${agendaCard('Oportunidades em risco',riskyOpps,(o)=>`${o.nome}<div class="irow-sub">Ultima atividade: ${fmtDate(commercialCrm.getOppLastActivity(o))}</div>`)}
+        ${agendaCard('Clientes sem contacto recente',staleClients,(c)=>`${c.nome}<div class="irow-sub">${fmtDate(commercialCrm.getClienteLastContact(c.id))}</div>`)}
+      </div>`;
+  }
+
+  const uv=D.visitas.slice(0,4);
+  document.getElementById('home-vis').innerHTML=uv.length===0?'<div class="empty"><p>Sem visitas registadas ainda.</p></div>':
+    uv.map((v)=>`<div class="irow"><div class="irow-top"><span class="irow-name">${v.cliente_nome}</span><span class="badge ${tipoCls(v.tipo)}">${v.tipo}</span></div><div class="irow-sub">${fmtDate(v.data)}${v.objetivo?' · '+v.objetivo:''}</div></div>`).join('');
+
+  const closingLimit=rules.fecho_alerta_30_dias;
+  const soon=D.opps.filter((o)=>o.estado==='aberta'&&o.data_fecho&&commercialCrm.daysUntil(o.data_fecho)<=closingLimit).sort((a,b)=>(a.data_fecho||'').localeCompare(b.data_fecho||'')).slice(0,4);
+  document.getElementById('home-close').innerHTML=soon.length===0?'<div class="empty"><p>Sem datas de fecho definidas</p></div>':
+    soon.map((o)=>{
+      const d=commercialCrm.daysUntil(o.data_fecho);
+      const cls=d!==null&&d<=rules.fecho_alerta_7_dias?'bbr':d!==null&&d<=rules.fecho_alerta_30_dias?'bbo':'bba';
+      return `<div class="irow"><div class="irow-top"><span class="irow-name">${o.nome}</span><span class="badge ${cls}">${d<=0?'Hoje':d===1?'Amanha':d+'d'}</span></div><div class="irow-sub">${o.cliente_nome} · ${fmtEur(o.valor)}</div></div>`;
+    }).join('');
+
+  renderGlobalSearch();
+}
+
+function renderOpps(){
+  commercialCrm.ensureUi();
+  const tb=document.getElementById('tb-opps');
+  const list=sortList([...D.opps],'opps');
+  if(!list.length){tb.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-ico">◇</div><p>Sem oportunidades.</p><div class="empty-act"><button class="btn btn-p btn-sm" onclick="openModal('opp')">+ Nova oportunidade</button></div></div></td></tr>`;return;}
+  const inactivityThreshold=commercialCrm.getConfig().regras.oportunidade_sem_atividade_dias;
+  tb.innerHTML=list.map((o)=>{
+    const closeDays=commercialCrm.daysUntil(o.data_fecho);
+    const lastActivity=commercialCrm.getOppLastActivity(o);
+    const activityLag=lastActivity?Math.abs(Math.min(commercialCrm.daysUntil(lastActivity),0)):inactivityThreshold+1;
+    const riskBadge=activityLag>=inactivityThreshold?'<span class="badge bbr">Risco</span>':'';
+    const tags=(o.tags||[]).slice(0,2).map((tag)=>`<span class="badge bbgr">${tag}</span>`).join(' ');
+    return`<tr>
+      <td style="cursor:pointer" onclick="showOppDetail('${o.id}')"><strong>${o.nome}</strong><div style="font-size:11px;color:var(--t3)">${o.cliente_nome}</div><div style="font-size:11px;color:var(--t3)">${o.proxima_acao||'Sem proxima acao'}</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px"><span class="badge ${o.prioridade==='critica'?'bbr':o.prioridade==='alta'?'bbo':o.prioridade==='media'?'bbl':'bbgr'}">${o.prioridade||'media'}</span>${riskBadge}${tags}</div></td>
+      <td><span class="badge ${commercialCrm.phaseBadge(o.fase)}">${o.fase}</span></td>
+      <td style="font-family:monospace">${fmtEur(o.valor)}</td>
+      <td><div style="display:flex;align-items:center;gap:6px"><div class="prog" style="width:44px"><div class="prog-fill" style="width:${o.probabilidade||0}%"></div></div><span style="font-size:11px;color:var(--t3)">${o.probabilidade||0}%</span></div></td>
+      <td>${closeDays!==null?`<span class="badge ${closeDays<=0?'bbr':closeDays<=7?'bbo':'bbgr'}">${closeDays===0?'Hoje':closeDays<0?'Expirado':closeDays+'d'}</span>`:'—'}</td>
+      <td><button class="btn btn-sm" onclick="editOpp('${o.id}')">Editar</button></td>
+      <td><span style="font-size:11px;color:var(--bl);font-weight:600;cursor:pointer" onclick="showOppDetail('${o.id}')">Ver →</span></td>
+    </tr>`;
+  }).join('');
+}
+
+async function saveOpp(){
+  const nome=document.getElementById('o-nome').value.trim(),cid=document.getElementById('o-cliente').value;
+  if(!nome||!cid){toast('Nome e cliente obrigatorios','err');return;}
+  const btn=document.getElementById('o-save-btn');btn.innerHTML='<span class="spin"></span>';btn.disabled=true;
+  const cliente=D.clientes.find((c)=>c.id===cid);
+  const fase=document.getElementById('o-fase').value;
+  const estado=window.FlexborShared.deriveOpportunityState(fase);
+  const payload={
+    nome,
+    cliente_id:cid,
+    cliente_nome:cliente?.nome||'',
+    valor:parseFloat(document.getElementById('o-valor').value)||0,
+    probabilidade:parseInt(document.getElementById('o-prob').value,10)||50,
+    fase,
+    data_fecho:document.getElementById('o-fecho').value||null,
+    proxima_acao:document.getElementById('o-next')?.value||'',
+    data_proxima_acao:document.getElementById('o-next-date')?.value||null,
+    prioridade:document.getElementById('o-priority')?.value||'media',
+    tags:commercialCrm.parseTags(document.getElementById('o-tags')?.value||''),
+    motivo_fecho:estado==='aberta'?null:(document.getElementById('o-reason')?.value||null),
+    campos_customizados:commercialCrm.readCustomFields(),
+    notas:document.getElementById('o-notas').value,
+    estado,
+    criado_por:myId
+  };
+  const query=editingOppId?sb.from('oportunidades').update(payload).eq('id',editingOppId):sb.from('oportunidades').insert(payload);
+  const {error}=await query;
+  btn.innerHTML='Guardar';btn.disabled=false;
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast(editingOppId?'Oportunidade atualizada!':'Oportunidade criada!','ok');
+  resetOppForm();
+  closeModal('opp');
+  await loadAll();
+}
+
+function editOpp(id){
+  const o=D.opps.find((x)=>x.id===id);if(!o)return;
+  editingOppId=id;
+  commercialCrm.ensureUi();
+  const title=document.getElementById('modal-opp-title');
+  if(title) title.textContent='Atualizar oportunidade';
+  document.getElementById('o-save-btn').textContent='Atualizar';
+  document.getElementById('o-nome').value=o.nome||'';
+  document.getElementById('o-cliente').value=o.cliente_id||'';
+  document.getElementById('o-valor').value=o.valor||0;
+  document.getElementById('o-prob').value=o.probabilidade||50;
+  document.getElementById('o-fase').value=o.fase||commercialCrm.phases()[0]||'Prospeccao';
+  commercialCrm.ensureUi();
+  document.getElementById('o-fecho').value=o.data_fecho||'';
+  if(document.getElementById('o-next')) document.getElementById('o-next').value=o.proxima_acao||'';
+  if(document.getElementById('o-next-date')) document.getElementById('o-next-date').value=o.data_proxima_acao||'';
+  if(document.getElementById('o-priority')) document.getElementById('o-priority').value=o.prioridade||'media';
+  if(document.getElementById('o-tags')) document.getElementById('o-tags').value=commercialCrm.formatTags(o.tags);
+  document.getElementById('o-notas').value=o.notas||'';
+  commercialCrm.renderCustomFields(o.campos_customizados||{});
+  const reasonWrap=document.getElementById('opp-reason-wrap');
+  if(reasonWrap) reasonWrap.style.display=window.FlexborShared.deriveOpportunityState(o.fase)==='aberta'?'none':'';
+  if(document.getElementById('o-reason')) document.getElementById('o-reason').value=o.motivo_fecho||'';
+  document.getElementById('mov-opp').classList.add('on');
+}
+
+function renderTarefas(){
+  const rules=commercialCrm.getConfig().regras;
+  const today=new Date();today.setHours(0,0,0,0);
+  const list=D.tarefas.filter((t)=>tabT==='pend'?t.estado==='pendente':t.estado==='concluida');
+  const el=document.getElementById('tb-tarefas');
+  if(!list.length){el.innerHTML=`<div class="empty"><div class="empty-ico">${tabT==='pend'?'✓':'📋'}</div><p>${tabT==='pend'?'Sem tarefas pendentes.':'Sem tarefas concluidas.'}</p>${tabT==='pend'?`<div class="empty-act"><button class="btn btn-p btn-sm" onclick="openModal('tarefa')">+ Nova tarefa</button></div>`:''}</div>`;return;}
+  el.innerHTML=list.map((t)=>{
+    const dueDays=t.data_limite?Math.ceil((new Date(t.data_limite)-today)/86400000):null;
+    const critical=t.prioridade==='critica'||(dueDays!==null&&dueDays<=rules.tarefa_critica_dias);
+    const urgent=t.estado==='pendente'&&dueDays!==null&&dueDays<=0;
+    return`<div class="irow" style="${critical?'border-left:3px solid var(--re);':''}">
+      <div class="irow-top">
+        <span class="irow-name">${t.descricao}</span>
+        <span class="badge ${critical?'bbr':urgent?'bbo':'bbgr'}">${critical?'Critica':urgent?'Atrasada':dueDays===0?'Hoje':dueDays===1?'Amanha':fmtDate(t.data_limite)}</span>
+      </div>
+      <div class="irow-sub">${[t.cliente_nome,t.tipo,t.prioridade].filter(Boolean).join(' · ')}</div>
+      ${t.notas?`<div class="irow-sub">${t.notas}</div>`:''}
+      <div class="irow-acts">
+        ${t.estado==='pendente'?`<button class="btn btn-sm" onclick="concluir('${t.id}')">✓ Concluir</button>`:''}
+        <button class="btn btn-sm btn-del" onclick="confirmDel('tarefas','${t.id}','${esc(t.descricao)}')">Eliminar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function showOppDetail(id){
+  const o=D.opps.find((x)=>x.id===id);if(!o)return;
+  const closeDays=commercialCrm.daysUntil(o.data_fecho);
+  const lastActivity=commercialCrm.getOppLastActivity(o);
+  const customFields=o.campos_customizados&&Object.keys(o.campos_customizados).length?Object.entries(o.campos_customizados).map(([label,value])=>dfld(label,value)).join(''):'';
+  const tags=(o.tags||[]).length?(o.tags||[]).map((tag)=>`<span class="badge bbgr">${tag}</span>`).join(' '):'Sem tags';
+  let html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    +dfld('Oportunidade','<strong>'+o.nome+'</strong>')
+    +dfld('Cliente',o.cliente_nome)
+    +dfld('Fase','<span class="badge '+commercialCrm.phaseBadge(o.fase)+'">'+o.fase+'</span>')
+    +dfld('Valor','<strong style="font-family:monospace;font-size:15px">'+fmtEur(o.valor)+'</strong>')
+    +'</div>';
+  html+=dfld('Probabilidade','<div style="display:flex;align-items:center;gap:10px;margin-top:2px"><div style="flex:1;height:6px;background:var(--s3);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+(o.probabilidade||0)+'%;background:var(--bl);border-radius:3px"></div></div><strong>'+(o.probabilidade||0)+'%</strong></div>');
+  html+=dfld('Prioridade','<span class="badge '+(o.prioridade==='critica'?'bbr':o.prioridade==='alta'?'bbo':o.prioridade==='media'?'bbl':'bbgr')+'">'+(o.prioridade||'media')+'</span>');
+  html+=dfld('Tags',tags);
+  if(o.data_fecho){
+    html+=dfld('Fecho previsto','<span class="badge '+(closeDays!==null&&closeDays<=7?'bbr':closeDays!==null&&closeDays<=30?'bbo':'bbgr')+'">'+fmtDate(o.data_fecho)+'</span>'+(closeDays===null?'':' <span style="color:var(--t3);font-size:11px">('+(closeDays===0?'hoje':closeDays<0?'expirado':closeDays+'d')+')</span>'));
+  }
+  if(lastActivity) html+=dfld('Ultima atividade',fmtDate(lastActivity));
+  html+=dfld('Proxima acao',o.proxima_acao||'Sem proxima acao definida');
+  if(o.data_proxima_acao) html+=dfld('Data proxima acao',fmtDate(o.data_proxima_acao));
+  if(o.motivo_fecho) html+=dfld('Razao de fecho',o.motivo_fecho);
+  if(o.notas) html+=dfld('Notas',o.notas);
+  if(customFields) html+=customFields;
+  html+='<div style="display:flex;gap:8px;align-items:center"><button class="btn" onclick="editOpp(\''+o.id+'\');closeModal(\'opp-detail\')">Editar oportunidade</button><button class="btn" onclick="showClienteTimeline(\''+o.cliente_id+'\');closeModal(\'opp-detail\')">Timeline cliente</button></div>';
+  document.getElementById('opp-detail-body').innerHTML=html;
+  document.getElementById('mov-opp-detail').classList.add('on');
+}
+
+document.getElementById('o-fase')?.addEventListener('change',()=>commercialCrm.ensureUi());
 document.getElementById('ap').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 </script>
 <!-- MODAL DETALHE VISITA -->
