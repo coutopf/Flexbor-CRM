@@ -493,7 +493,7 @@ sb.auth.onAuthStateChange(async(ev,session)=>{
 });
 
 // REALTIME — re-carrega quando há alterações
-function setupRealtime(){
+function legacySetupRealtimeBase(){
   if(realtimeReady) return;
   realtimeReady=true;
   ['visitas','oportunidades','tarefas','clientes','profiles','contactos','propostas','proposta_itens'].forEach(t=>{
@@ -502,7 +502,7 @@ function setupRealtime(){
 }
 
 // LOAD — gestor vê TUDO (sem filtro de criado_por)
-async function loadAll(){
+async function legacyLoadAllBase(){
   const[pr,cl,ct,vi,op,ta]=await Promise.all([
     sb.from('profiles').select('*'),
     sb.from('clientes').select('*').order('nome',{ascending:true}),
@@ -528,7 +528,7 @@ function fillProfileFilters(){
   });
 }
 
-async function loadAll(){
+async function legacyLoadAllRealtime(){
   const currentToken=++loadToken;
   setGlobalLoading(true);
   try{
@@ -580,19 +580,19 @@ function renderAll(){renderDash();renderAlertas();renderPipeline();renderRelator
 function fmtDate(d){if(!d)return'—';const p=d.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d;}
 function fmtEur(v){return(v||0).toLocaleString('pt-PT',{minimumFractionDigits:0,maximumFractionDigits:0})+' €';}
 function fmtK(v){if(v>=1000000)return(v/1000000).toFixed(1)+'M€';if(v>=1000)return Math.round(v/1000)+'K€';return Math.round(v)+'€';}
-function profName(uid){const p=raw.profiles.find(p=>p.id===uid);return p?.nome||'—';}
+function legacyProfNameBase(uid){const p=raw.profiles.find(p=>p.id===uid);return p?.nome||'—';}
 function profIni(n){return(n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
 function tipoCls(t){return{Presencial:'bbg',Videochamada:'bbl',Telefone:'bbo'}[t]||'bbgr';}
-function contactoNome(id){if(!id)return'—';const c=raw.contactos.find(x=>x.id===id);return c?.nome||'—';}
+function legacyContactoNomeBase(id){if(!id)return'—';const c=raw.contactos.find(x=>x.id===id);return c?.nome||'—';}
 function dc(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 function daysLeft(d){if(!d)return null;const today=new Date();today.setHours(0,0,0,0);return Math.ceil((new Date(d)-today)/86400000);}
 function rndColor(i){return['#a78bfa','#4da6ff','#4dca7a','#ff8c42','#2dd4bf','#e8ff5a'][i%6];}
 
-function profName(uid){return raw.profilesById[uid]?.nome||'â€”';}
-function contactoNome(id){if(!id)return'â€”';return raw.contactosById[id]?.nome||'â€”';}
+function legacyProfNameLookup(uid){return raw.profilesById[uid]?.nome||'â€”';}
+function legacyContactoNomeLookup(id){if(!id)return'â€”';return raw.contactosById[id]?.nome||'â€”';}
 
 // DASHBOARD
-function renderDash(){
+function legacyRenderDashBase(){
   const now=new Date(),mes=now.getMonth(),ano=now.getFullYear();
   const vMes=filt.visitas.filter(v=>{const d=new Date(v.data);return d.getMonth()===mes&&d.getFullYear()===ano;});
   const oAb=filt.opps.filter(o=>o.estado==='aberta');
@@ -643,7 +643,7 @@ function renderDash(){
 }
 
 // ALERTAS
-function renderAlertas(){
+function legacyRenderAlertasBase(){
   const today=new Date();today.setHours(0,0,0,0);
   const alertas=[];
   const semAtiv=filt.opps.filter(o=>{
@@ -766,7 +766,7 @@ function renderVisitas(){
 }
 
 // OPPS
-function renderOpps(){
+function legacyRenderOppsBase(){
   const q=(document.getElementById('so')?.value||'').toLowerCase();
   const fase=document.getElementById('fof')?.value||'';
   const fm={Prospeção:'bbgr',Qualificação:'bbl',Proposta:'bbo',Negociação:'bbp','Fechado — Ganho':'bbg','Fechado — Perdido':'bbr'};
@@ -996,7 +996,7 @@ function showVisitaDetail(id){
   document.getElementById('panel-visita').classList.add('on');
 }
 
-function showOppDetail(id){
+function legacyShowOppDetailBase(id){
   const o=raw.opps.find(x=>x.id===id);
   if(!o)return;
   const fm={Prospeção:'bbgr',Qualificação:'bbl',Proposta:'bbo',Negociação:'bbp','Fechado — Ganho':'bbg','Fechado — Perdido':'bbr'};
@@ -1312,6 +1312,319 @@ function renderClientes(){
 }
 
 
+raw.config=window.FlexborShared.getDefaultCrmConfig();
+raw.audit=[];
+
+const gestorCrm={
+  getConfig(){
+    raw.config=window.FlexborShared.normalizeCrmConfig(raw.config);
+    return raw.config;
+  },
+  phaseBadge(fase){
+    const value=String(fase||'').toLowerCase();
+    if(value.includes('ganh')) return 'bbg';
+    if(value.includes('perd')) return 'bbr';
+    if(value.includes('negoc')) return 'bbp';
+    if(value.includes('propost')) return 'bbo';
+    if(value.includes('qualif')) return 'bbl';
+    return 'bbgr';
+  },
+  list(value){
+    return Array.isArray(value)?value:[];
+  },
+  textLines(value){
+    return String(value||'').split(/\r?\n/).map((item)=>item.trim()).filter(Boolean);
+  },
+  formatLines(value){
+    return this.list(value).join('\n');
+  },
+  getOppLastActivity(opp){
+    const candidates=[opp.ultima_atividade_em,opp.created_at&&String(opp.created_at).slice(0,10),opp.data_proxima_acao];
+    raw.visitas.forEach((v)=>{if(v.cliente_id===opp.cliente_id)candidates.push(v.data||String(v.created_at||'').slice(0,10));});
+    raw.tarefas.forEach((t)=>{if(t.cliente_id===opp.cliente_id)candidates.push(t.updated_at&&String(t.updated_at).slice(0,10),t.created_at&&String(t.created_at).slice(0,10),t.data_limite);});
+    return candidates.filter(Boolean).sort().pop()||null;
+  },
+  getClienteLastContact(clienteId){
+    const dates=raw.visitas.filter((v)=>v.cliente_id===clienteId).map((v)=>v.data||String(v.created_at||'').slice(0,10)).filter(Boolean);
+    return dates.sort().pop()||null;
+  },
+  daysFromToday(dateValue){
+    if(!dateValue) return null;
+    const today=new Date();
+    today.setHours(0,0,0,0);
+    return Math.ceil((new Date(dateValue)-today)/86400000);
+  }
+};
+
+async function loadAll(){
+  const currentToken=++loadToken;
+  setGlobalLoading(true);
+  try{
+    const[pr,cl,ct,vi,op,ta,pp,cfg,audit]=await Promise.all([
+      sb.from('profiles').select('*'),
+      sb.from('clientes').select('*').order('nome',{ascending:true}),
+      sb.from('contactos').select('*').order('nome'),
+      sb.from('visitas').select('*').order('data',{ascending:false}),
+      sb.from('oportunidades').select('*').order('created_at',{ascending:false}),
+      sb.from('tarefas').select('*').order('data_limite'),
+      sb.from('propostas').select('*, proposta_itens(*)').order('created_at',{ascending:false}),
+      sb.from('crm_configuracao').select('*').limit(1).maybeSingle(),
+      sb.from('crm_auditoria').select('*').order('created_at',{ascending:false}).limit(20)
+    ]);
+    if(currentToken!==loadToken) return;
+    raw.profiles=pr.data||[];
+    raw.clientes=cl.data||[];
+    raw.contactos=ct.data||[];
+    raw.visitas=vi.data||[];
+    raw.opps=op.data||[];
+    raw.tarefas=ta.data||[];
+    raw.propostas=pp.data||[];
+    raw.config=window.FlexborShared.normalizeCrmConfig(cfg.data);
+    raw.audit=audit.data||[];
+    raw.profilesById=createLookup(raw.profiles);
+    raw.contactosById=createLookup(raw.contactos);
+    fillProfileFilters();
+    applyFilter();
+    const lu=document.getElementById('last-update');
+    if(lu) lu.textContent='Atualizado as '+new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
+  }finally{
+    if(currentToken===loadToken) setGlobalLoading(false);
+  }
+}
+
+function setupRealtime(){
+  if(realtimeReady) return;
+  realtimeReady=true;
+  ['visitas','oportunidades','tarefas','clientes','profiles','contactos','propostas','proposta_itens','crm_configuracao','crm_auditoria'].forEach((t)=>{
+    sb.channel('rt-'+t).on('postgres_changes',{event:'*',schema:'public',table:t},()=>loadAll()).subscribe();
+  });
+}
+
+function renderDash(){
+  const rules=gestorCrm.getConfig().regras;
+  const now=new Date(),mes=now.getMonth(),ano=now.getFullYear();
+  const vMes=filt.visitas.filter((v)=>{const d=new Date(v.data);return d.getMonth()===mes&&d.getFullYear()===ano;});
+  const oAb=filt.opps.filter((o)=>o.estado==='aberta');
+  const oGa=filt.opps.filter((o)=>o.estado==='ganha');
+  const pipe=oAb.reduce((s,o)=>s+(o.valor||0),0);
+  const ganhos=oGa.reduce((s,o)=>s+(o.valor||0),0);
+  const taxa=filt.opps.length>0?Math.round(oGa.length/filt.opps.length*100):0;
+  document.getElementById('d-vm').textContent=vMes.length;
+  document.getElementById('d-vm-sub').textContent=`${filt.visitas.length} total`;
+  document.getElementById('d-pipe').textContent=fmtK(pipe);
+  document.getElementById('d-pipe-sub').textContent=`${oAb.length} oportunidades`;
+  document.getElementById('d-ganhos').textContent=fmtK(ganhos);
+  document.getElementById('d-ganhos-sub').textContent=`${oGa.length} fechados`;
+  document.getElementById('d-taxa').textContent=taxa+'%';
+
+  const semana=new Date();semana.setDate(semana.getDate()-7);
+  const coms=raw.profiles.filter((p)=>p.role==='comercial');
+  const rd=coms.map((p,i)=>({nome:p.nome,cor:rndColor(i),v:raw.visitas.filter((v)=>v.criado_por===p.id&&new Date(v.data)>=semana).length,pipe:filt.opps.filter((o)=>o.criado_por===p.id&&o.estado==='aberta').reduce((s,o)=>s+(o.valor||0),0)})).sort((a,b)=>b.v-a.v);
+  const maxV=Math.max(...rd.map((r)=>r.v),1);
+  document.getElementById('dash-rank').innerHTML=rd.length===0?'<div class="empty" style="padding:20px">Sem comerciais na equipa ainda.</div>':
+    rd.map((r,i)=>`<div class="rank-row">
+      <div class="rank-pos ${i===0?'gold':i===1?'silver':''}">${i+1}</div>
+      <div class="rank-av" style="background:${r.cor}20;color:${r.cor}">${profIni(r.nome)}</div>
+      <div class="rank-info"><div class="rank-name">${r.nome}</div>
+        <div class="rank-bar-w"><div class="rank-bar"><div class="rank-fill" style="width:${Math.round(r.v/maxV*100)}%;background:${r.cor}"></div></div></div>
+      </div>
+      <div class="rank-side"><span class="rank-val">${r.v} vis.</span><span style="font-size:10px;color:var(--t3)">${fmtK(r.pipe)}</span></div>
+    </div>`).join('');
+
+  const soon=filt.opps.filter((o)=>o.estado==='aberta'&&o.data_fecho&&gestorCrm.daysFromToday(o.data_fecho)<=rules.fecho_alerta_30_dias&&gestorCrm.daysFromToday(o.data_fecho)>=0).sort((a,b)=>(a.data_fecho||'').localeCompare(b.data_fecho||''));
+  document.getElementById('dash-closing').innerHTML=soon.length===0?'<div class="empty" style="padding:20px">Sem oportunidades com data de fecho definida no horizonte configurado.</div>':
+    `<table><thead><tr><th>Oportunidade</th><th>Valor</th><th>Fecho</th><th>Comercial</th></tr></thead><tbody>`+
+    soon.map((o)=>{const d=gestorCrm.daysFromToday(o.data_fecho);const cls=d<=rules.fecho_alerta_7_dias?'bbr':d<=rules.fecho_alerta_30_dias?'bbo':'bba';
+      return`<tr><td><strong>${o.nome}</strong><br><span style="font-size:10px;color:var(--t3)">${o.cliente_nome}</span></td><td style="font-family:monospace">${fmtEur(o.valor)}</td><td><span class="badge ${cls}">${d===0?'Hoje':d===1?'Amanha':d+'d'}</span></td><td>${profName(o.criado_por)}</td></tr>`;
+    }).join('')+'</tbody></table>';
+
+  dc('vis');dc('fases');
+  const vCtx=document.getElementById('c-vis');
+  if(vCtx&&rd.length){charts.vis=new Chart(vCtx,{type:'bar',data:{labels:rd.map((r)=>r.nome.split(' ')[0]),datasets:[{data:rd.map((r)=>r.v),backgroundColor:rd.map((r)=>r.cor+'80'),borderColor:rd.map((r)=>r.cor),borderWidth:1.5,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',font:{size:11}}},y:{ticks:{color:'#555',font:{size:11},stepSize:1},grid:{color:'rgba(255,255,255,0.03)'}}}}});}
+  const fases=gestorCrm.getConfig().pipeline_fases.filter((fase)=>!String(fase).toLowerCase().includes('perd'));
+  const fVals=fases.map((f)=>filt.opps.filter((o)=>o.fase===f).reduce((s,o)=>s+(o.valor||0),0));
+  const fCtx=document.getElementById('c-fases');
+  if(fCtx){charts.fases=new Chart(fCtx,{type:'doughnut',data:{labels:fases,datasets:[{data:fVals,backgroundColor:['rgba(74,74,85,.6)','rgba(77,166,255,.6)','rgba(255,140,66,.6)','rgba(167,139,250,.6)','rgba(77,202,122,.6)','rgba(255,87,87,.6)'],borderColor:'transparent',hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#888',font:{size:11},boxWidth:10,padding:8}}}}});}
+}
+
+function renderPipeline(){
+  const fases=gestorCrm.getConfig().pipeline_fases;
+  const uid=document.getElementById('f-pipe-com').value;
+  const opps=filt.opps.filter((o)=>o.estado!=='perdida'&&(!uid||o.criado_por===uid));
+  const total=opps.filter((o)=>o.estado==='aberta').reduce((s,o)=>s+(o.valor||0),0);
+  document.getElementById('pipe-total').innerHTML=`Total pipeline: <strong style="color:var(--ac)">${fmtEur(total)}</strong> · ${opps.length} oportunidades`;
+  document.getElementById('pipeline-board').innerHTML=fases.map((fase)=>{
+    const items=opps.filter((o)=>o.fase===fase);
+    const tot=items.reduce((s,o)=>s+(o.valor||0),0);
+    return`<div class="pipe-col"><div class="pipe-col-hd"><div class="pipe-col-title" style="color:var(--t2)">${fase}</div><div class="pipe-col-meta">${items.length} · ${fmtK(tot)}</div></div>
+      <div class="pipe-items">${items.length===0?`<div style="color:var(--t3);font-size:11px;text-align:center;padding:10px">—</div>`:
+        items.map((o)=>{
+          const dl=gestorCrm.daysFromToday(o.data_fecho);
+          const urgTag=dl!==null&&dl<=gestorCrm.getConfig().regras.fecho_alerta_7_dias?`<span class="badge bbr" style="font-size:9px">${dl===0?'Hoje':dl<0?'Expirado':dl+'d'}</span>`:
+            dl!==null&&dl<=gestorCrm.getConfig().regras.fecho_alerta_30_dias?`<span class="badge bbo" style="font-size:9px">${dl+'d'}</span>`:'';
+          return`<div class="pipe-card">
+            <div class="pipe-name">${o.nome}</div>
+            <div class="pipe-client">${o.cliente_nome}</div>
+            <div class="pipe-foot"><span class="pipe-val">${fmtK(o.valor)}</span><span class="pipe-who">${profName(o.criado_por).split(' ')[0]}</span></div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:5px"><div style="flex:1;height:3px;background:var(--s4);border-radius:2px;overflow:hidden"><div style="height:100%;width:${o.probabilidade||0}%;background:var(--pu);border-radius:2px"></div></div><span style="font-size:9px;color:var(--t3)">${o.probabilidade||0}%</span>${urgTag||''}</div>
+          </div>`;
+        }).join('')}
+      </div></div>`;
+  }).join('');
+}
+
+function renderOpps(){
+  const filterEl=document.getElementById('fof');
+  if(filterEl){
+    const current=filterEl.value;
+    filterEl.innerHTML='<option value="">Todas as fases</option>'+gestorCrm.getConfig().pipeline_fases.map((fase)=>`<option>${fase}</option>`).join('');
+    filterEl.value=gestorCrm.getConfig().pipeline_fases.includes(current)?current:'';
+  }
+  const q=(document.getElementById('so')?.value||'').toLowerCase();
+  const fase=document.getElementById('fof')?.value||'';
+  const list=raw.opps.filter((o)=>((!q)||o.nome.toLowerCase().includes(q)||(o.cliente_nome||'').toLowerCase().includes(q))&&(!fase||o.fase===fase));
+  document.getElementById('tb-opps').innerHTML=list.length===0?'<tr><td colspan="7"><div class="empty" style="padding:24px">Sem oportunidades com os filtros atuais.</div></td></tr>':
+    list.map((o)=>{
+      const d=gestorCrm.daysFromToday(o.data_fecho);
+      const lastActivity=gestorCrm.getOppLastActivity(o);
+      const lag=lastActivity?Math.abs(Math.min(gestorCrm.daysFromToday(lastActivity),0)):gestorCrm.getConfig().regras.oportunidade_sem_atividade_dias+1;
+      const urg=lag>=gestorCrm.getConfig().regras.oportunidade_sem_atividade_dias||(d!==null&&d<=gestorCrm.getConfig().regras.fecho_alerta_7_dias);
+      const tags=(o.tags||[]).slice(0,2).map((tag)=>`<span class="badge bbgr">${tag}</span>`).join(' ');
+      return`<tr style="cursor:pointer" onclick="showOppDetail('${o.id}')">
+        <td><strong>${o.nome}</strong><div style="font-size:11px;color:var(--t3)">${o.cliente_nome}</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px"><span class="badge ${o.prioridade==='critica'?'bbr':o.prioridade==='alta'?'bbo':o.prioridade==='media'?'bbl':'bbgr'}">${o.prioridade||'media'}</span>${urg?'<span class="badge bbr">Risco</span>':''}${tags}</div></td>
+        <td><span class="badge ${gestorCrm.phaseBadge(o.fase)}">${o.fase}</span></td>
+        <td style="font-family:monospace">${fmtEur(o.valor)}</td>
+        <td><div style="display:flex;align-items:center;gap:6px"><div class="prog" style="width:44px"><div class="prog-fill" style="width:${o.probabilidade||0}%;background:var(--pu)"></div></div><span style="font-size:10px;color:var(--t3)">${o.probabilidade||0}%</span></div></td>
+        <td>${d!==null?`<span class="badge ${d<=gestorCrm.getConfig().regras.fecho_alerta_7_dias?'bbr':d<=gestorCrm.getConfig().regras.fecho_alerta_30_dias?'bbo':'bbgr'}">${d===0?'Hoje':d<0?'Expirado':d+'d'}</span>`:'—'}</td>
+        <td>${profName(o.criado_por)}</td>
+        <td><span style="font-size:11px;color:var(--bl)">Ver →</span></td></tr>`;
+    }).join('');
+}
+
+function showOppDetail(id){
+  const o=raw.opps.find((x)=>x.id===id);
+  if(!o)return;
+  const d=gestorCrm.daysFromToday(o.data_fecho);
+  const tags=(o.tags||[]).length?(o.tags||[]).map((tag)=>`<span class="badge bbgr">${tag}</span>`).join(' '):'Sem tags';
+  const customFields=o.campos_customizados&&Object.keys(o.campos_customizados).length?Object.entries(o.campos_customizados).map(([label,value])=>detailField(label,value)).join(''):'';
+  const body=document.getElementById('panel-opp-body');
+  body.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      ${detailField('Oportunidade','<strong>'+o.nome+'</strong>')}
+      ${detailField('Cliente',o.cliente_nome)}
+      ${detailField('Fase','<span class="badge '+gestorCrm.phaseBadge(o.fase)+'">'+o.fase+'</span>')}
+      ${detailField('Comercial',profName(o.criado_por))}
+      ${detailField('Valor','<strong style="font-family:monospace;font-size:15px">'+fmtEur(o.valor)+'</strong>')}
+      ${detailField('Prioridade','<span class="badge '+(o.prioridade==='critica'?'bbr':o.prioridade==='alta'?'bbo':o.prioridade==='media'?'bbl':'bbgr')+'">'+(o.prioridade||'media')+'</span>')}
+      ${detailField('Probabilidade',`
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;height:6px;background:var(--s3);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${o.probabilidade||0}%;background:var(--pu);border-radius:3px"></div>
+          </div>
+          <span style="font-weight:700">${o.probabilidade||0}%</span>
+        </div>`)}
+      ${o.data_fecho?detailField('Fecho previsto',(d!==null&&d<=gestorCrm.getConfig().regras.fecho_alerta_7_dias?'<span class="badge bbr">':'<span class="badge bbgr">')+fmtDate(o.data_fecho)+(d!==null?' ('+( d===0?'hoje':d<0?'expirado':d+'d')+')':'')+'</span>'):''}
+    </div>
+    ${detailBlock('Tags',tags)}
+    ${detailBlock('Ultima atividade',fmtDate(gestorCrm.getOppLastActivity(o)))}
+    ${o.proxima_acao?detailBlock('Proxima acao',o.proxima_acao):''}
+    ${o.data_proxima_acao?detailBlock('Data proxima acao',fmtDate(o.data_proxima_acao)):''}
+    ${o.motivo_fecho?detailBlock('Razao de fecho',o.motivo_fecho):''}
+    ${o.notas?detailBlock('Notas',o.notas):''}
+    ${customFields}
+    <div style="font-size:11px;color:var(--t3)">Criado em ${new Date(o.created_at).toLocaleDateString('pt-PT')}</div>`;
+  document.getElementById('panel-opp').classList.add('on');
+}
+
+function renderAlertas(){
+  const rules=gestorCrm.getConfig().regras;
+  const oppsAtRisk=filt.opps.filter((o)=>{
+    if(o.estado!=='aberta') return false;
+    const last=gestorCrm.getOppLastActivity(o);
+    if(!last) return true;
+    return gestorCrm.daysFromToday(last)<=-rules.oportunidade_sem_atividade_dias;
+  });
+  const staleClients=raw.clientes.filter((c)=>{
+    const last=gestorCrm.getClienteLastContact(c.id);
+    if(!last) return true;
+    return gestorCrm.daysFromToday(last)<=-rules.cliente_sem_contacto_dias;
+  });
+  const close7=filt.opps.filter((o)=>o.estado==='aberta'&&o.data_fecho&&gestorCrm.daysFromToday(o.data_fecho)>=0&&gestorCrm.daysFromToday(o.data_fecho)<=rules.fecho_alerta_7_dias);
+  const close30=filt.opps.filter((o)=>o.estado==='aberta'&&o.data_fecho&&gestorCrm.daysFromToday(o.data_fecho)>rules.fecho_alerta_7_dias&&gestorCrm.daysFromToday(o.data_fecho)<=rules.fecho_alerta_30_dias);
+  const criticalTasks=raw.tarefas.filter((t)=>t.estado==='pendente'&&(t.prioridade==='critica'||(t.data_limite&&gestorCrm.daysFromToday(t.data_limite)<=rules.tarefa_critica_dias)));
+  const criticalByCom=raw.profiles.filter((p)=>p.role==='comercial').map((p)=>({nome:p.nome,total:criticalTasks.filter((t)=>t.criado_por===p.id).length})).filter((item)=>item.total>0).sort((a,b)=>b.total-a.total);
+
+  const alertas=[];
+  if(oppsAtRisk.length) alertas.push({type:'red',ico:'●',title:`${oppsAtRisk.length} oportunidade(s) em risco`,items:oppsAtRisk.slice(0,6).map((o)=>`${o.nome} — ${o.cliente_nome} — ${profName(o.criado_por)}`)});
+  if(staleClients.length) alertas.push({type:'warn',ico:'◌',title:`${staleClients.length} cliente(s) sem contacto recente`,items:staleClients.slice(0,6).map((c)=>`${c.nome} — ultimo contacto ${fmtDate(gestorCrm.getClienteLastContact(c.id))}`)});
+  if(close7.length) alertas.push({type:'red',ico:'▲',title:`${close7.length} fecho(s) nos proximos ${rules.fecho_alerta_7_dias} dias`,items:close7.slice(0,6).map((o)=>`${o.nome} — ${fmtEur(o.valor)} — ${gestorCrm.daysFromToday(o.data_fecho)}d`)});
+  if(close30.length) alertas.push({type:'warn',ico:'△',title:`${close30.length} fecho(s) no horizonte ${rules.fecho_alerta_30_dias} dias`,items:close30.slice(0,6).map((o)=>`${o.nome} — ${fmtEur(o.valor)} — ${gestorCrm.daysFromToday(o.data_fecho)}d`)});
+  if(criticalByCom.length) alertas.push({type:'warn',ico:'!',title:`${criticalTasks.length} tarefa(s) critica(s) por comercial`,items:criticalByCom.map((item)=>`${item.nome} — ${item.total}`)});
+
+  const badge=document.getElementById('sb-alertas');
+  if(alertas.length){badge.textContent=alertas.length;badge.classList.add('on');}else badge.classList.remove('on');
+  const criticos=alertas.filter((a)=>a.type==='red').slice(0,2);
+  document.getElementById('dash-alerts').innerHTML=criticos.map((a)=>`<div class="alert-b ab-red"><div class="ab-ico">${a.ico}</div><div><div class="ab-title">${a.title}</div>${a.items.slice(0,3).map((i)=>`<div class="ab-item">· ${i}</div>`).join('')}</div></div>`).join('');
+
+  const cfg=gestorCrm.getConfig();
+  const auditHtml=raw.audit.length?raw.audit.map((row)=>`<div class="rank-row"><div class="rank-pos">${String(row.acao||'u').slice(0,1).toUpperCase()}</div><div class="rank-info"><div class="rank-name">${row.tabela}</div><div style="font-size:11px;color:var(--t3);margin-top:4px">${row.resumo||'Atualizacao'}</div></div><div class="rank-side"><span class="rank-val">${new Date(row.created_at).toLocaleDateString('pt-PT')}</span><span style="font-size:10px;color:var(--t3)">${profName(row.criado_por)}</span></div></div>`).join(''):'<div class="empty" style="padding:20px">Sem registos de auditoria ainda.</div>';
+
+  document.getElementById('alertas-content').innerHTML=(alertas.length===0?'<div class="card"><div class="empty" style="padding:40px 20px"><p style="font-size:15px;font-weight:700;color:var(--t)">Sem alertas criticos.</p><p style="margin-top:6px;font-size:13px">Os limites configurados nao detetaram riscos operacionais neste momento.</p></div></div>':'')+
+    alertas.map((a)=>`<div class="alert-b ${a.type==='red'?'ab-red':'ab-warn'}" style="margin-bottom:12px"><div class="ab-ico">${a.ico}</div><div style="flex:1"><div class="ab-title">${a.title}</div>${a.items.map((i)=>`<div class="ab-item">· ${i}</div>`).join('')}</div></div>`).join('')+
+    `<div class="card">
+      <div class="card-hd"><span class="card-title">Automacoes configuraveis</span><span class="card-sub">Motor de regras e pipeline</span></div>
+      <div class="modal-body">
+        <div class="fg2">
+          <div class="fg"><label>Follow-up visita (dias)</label><input type="number" id="cfg-followup" min="0" value="${cfg.regras.followup_visita_dias}"></div>
+          <div class="fg"><label>Oportunidade sem atividade (dias)</label><input type="number" id="cfg-opp-inactive" min="1" value="${cfg.regras.oportunidade_sem_atividade_dias}"></div>
+        </div>
+        <div class="fg2">
+          <div class="fg"><label>Cliente sem contacto (dias)</label><input type="number" id="cfg-client-stale" min="1" value="${cfg.regras.cliente_sem_contacto_dias}"></div>
+          <div class="fg"><label>Tarefa critica (dias)</label><input type="number" id="cfg-task-critical" min="0" value="${cfg.regras.tarefa_critica_dias}"></div>
+        </div>
+        <div class="fg2">
+          <div class="fg"><label>Fecho urgente (dias)</label><input type="number" id="cfg-close-7" min="1" value="${cfg.regras.fecho_alerta_7_dias}"></div>
+          <div class="fg"><label>Fecho horizonte (dias)</label><input type="number" id="cfg-close-30" min="1" value="${cfg.regras.fecho_alerta_30_dias}"></div>
+        </div>
+        <div class="fg"><label>Fases do pipeline (uma por linha)</label><textarea id="cfg-phases">${gestorCrm.formatLines(cfg.pipeline_fases)}</textarea></div>
+        <div class="fg"><label>Tags de oportunidade (uma por linha)</label><textarea id="cfg-tags">${gestorCrm.formatLines(cfg.tags_oportunidade)}</textarea></div>
+        <div class="fg2">
+          <div class="fg"><label>Motivos de ganho</label><textarea id="cfg-win-reasons">${gestorCrm.formatLines(cfg.motivos_ganho)}</textarea></div>
+          <div class="fg"><label>Motivos de perda</label><textarea id="cfg-loss-reasons">${gestorCrm.formatLines(cfg.motivos_perda)}</textarea></div>
+        </div>
+        <div class="fg"><label>Campos personalizados da oportunidade</label><textarea id="cfg-custom-fields">${gestorCrm.formatLines(cfg.campos_customizados)}</textarea></div>
+      </div>
+      <div class="modal-ft"><button class="btn btn-p" onclick="saveCrmConfig()">Guardar configuracao</button></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Auditoria recente</span><span class="card-sub">Ultimas alteracoes relevantes</span></div>
+      <div>${auditHtml}</div>
+    </div>`;
+}
+
+async function saveCrmConfig(){
+  const payload={
+    singleton_key:true,
+    pipeline_fases:gestorCrm.textLines(document.getElementById('cfg-phases').value),
+    tags_oportunidade:gestorCrm.textLines(document.getElementById('cfg-tags').value),
+    motivos_ganho:gestorCrm.textLines(document.getElementById('cfg-win-reasons').value),
+    motivos_perda:gestorCrm.textLines(document.getElementById('cfg-loss-reasons').value),
+    campos_customizados:gestorCrm.textLines(document.getElementById('cfg-custom-fields').value),
+    regras:{
+      followup_visita_dias:parseInt(document.getElementById('cfg-followup').value,10)||2,
+      oportunidade_sem_atividade_dias:parseInt(document.getElementById('cfg-opp-inactive').value,10)||30,
+      cliente_sem_contacto_dias:parseInt(document.getElementById('cfg-client-stale').value,10)||45,
+      fecho_alerta_7_dias:parseInt(document.getElementById('cfg-close-7').value,10)||7,
+      fecho_alerta_30_dias:parseInt(document.getElementById('cfg-close-30').value,10)||30,
+      tarefa_critica_dias:parseInt(document.getElementById('cfg-task-critical').value,10)||0,
+      followup_visita_automatica:true
+    }
+  };
+  const {error}=await sb.from('crm_configuracao').upsert(payload,{onConflict:'singleton_key'});
+  if(error){toast('Erro: '+error.message,'err');return;}
+  toast('Configuracao guardada','ok');
+  await loadAll();
+}
 
 function clearSession(){
   // Clear all Supabase auth storage
